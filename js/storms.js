@@ -57,7 +57,7 @@ const StormData = (() => {
   function normalizeGdacs(feature) {
     const p = feature.properties || {};
     const [lon, lat] = feature.geometry?.coordinates || [0, 0];
-    const windKmh = Number(p.severitydata?.severity) || 0;
+    const windKmh = Math.round(Number(p.severitydata?.severity)) || 0;
     const cat = categorize(windKmh);
     return {
       id: `gdacs-${p.eventid}`,

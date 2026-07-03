@@ -13,7 +13,7 @@
     document.getElementById("cesiumContainer").innerHTML =
       `<div style="display:flex;height:100%;align-items:center;justify-content:center;
                    text-align:center;color:#8fa3c8;font-size:15px;line-height:1.8;padding:24px">
-         ⚠️ Không tải được thư viện bản đồ CesiumJS (CDN).<br>
+         Không tải được thư viện bản đồ CesiumJS (CDN).<br>
          Vui lòng kiểm tra kết nối mạng rồi tải lại trang.
        </div>`;
     return;
@@ -311,7 +311,9 @@
   function renderList() {
     document.getElementById("storm-count").textContent = storms.length;
     if (!storms.length) {
-      listEl.innerHTML = `<div class="empty-state">🌤️<br>Hiện không có cơn bão nào<br>đang hoạt động trên thế giới.</div>`;
+      listEl.innerHTML = `<div class="empty-state">
+        <svg class="icon"><use href="#i-wind"/></svg><br>
+        Hiện không có cơn bão nào<br>đang hoạt động trên thế giới.</div>`;
       return;
     }
     listEl.innerHTML = storms.map((s) => `
@@ -380,7 +382,8 @@
         <div><b>Cập nhật:</b> ${fmtDate(s.updated)}</div>
         <div><b>Nguồn:</b> ${s.source}</div>
       </div>
-      <a class="detail-link" href="${s.reportUrl}" target="_blank" rel="noopener">Xem báo cáo đầy đủ ↗</a>`;
+      <a class="detail-link" href="${s.reportUrl}" target="_blank" rel="noopener">
+        Xem báo cáo đầy đủ <svg class="icon"><use href="#i-external"/></svg></a>`;
     document.getElementById("detail-panel").classList.remove("hidden");
   }
 
@@ -409,7 +412,9 @@
 
   function toast(msg, warn = false, ms = 5000) {
     const el = document.getElementById("status-toast");
-    el.textContent = msg;
+    el.innerHTML = (warn ? '<svg class="icon"><use href="#i-alert"/></svg>' : "") +
+      `<span></span>`;
+    el.lastElementChild.textContent = msg;
     el.className = `toast ${warn ? "warn" : ""}`;
     clearTimeout(el._t);
     el._t = setTimeout(() => el.classList.add("hidden"), ms);
@@ -418,7 +423,7 @@
   async function refresh() {
     if (refreshing) return;
     refreshing = true;
-    document.getElementById("btn-refresh").textContent = "…";
+    document.getElementById("btn-refresh").classList.add("spinning");
     try {
       const { storms: fresh, errors } = await StormData.fetchActiveStorms();
       const badge = document.getElementById("live-badge");
@@ -428,7 +433,7 @@
         storms = StormData.demoStorms();
         badge.classList.add("stale");
         badge.innerHTML = `<span class="live-dot"></span> DEMO`;
-        toast("⚠️ Không kết nối được nguồn dữ liệu — đang hiển thị dữ liệu mẫu.", true, 8000);
+        toast("Không kết nối được nguồn dữ liệu — đang hiển thị dữ liệu mẫu.", true, 8000);
       } else {
         // Giữ lại track đã tải cho các cơn bão cũ
         const oldTracks = new Map(storms.map((s) => [s.id, s.track]));
@@ -436,7 +441,7 @@
         storms = fresh;
         badge.classList.remove("stale");
         badge.innerHTML = `<span class="live-dot"></span> LIVE`;
-        if (errors.length) toast(`⚠️ Một nguồn dữ liệu bị lỗi (${errors[0]})`, true);
+        if (errors.length) toast(`Một nguồn dữ liệu bị lỗi (${errors[0]})`, true);
       }
 
       renderList();
@@ -444,14 +449,15 @@
       // Tải trước đường đi của vài cơn bão mạnh nhất
       storms.slice(0, 5).forEach(loadTrackFor);
 
-      document.getElementById("last-update").textContent =
-        "Cập nhật: " + new Date().toLocaleTimeString("vi-VN", { hour12: false });
+      document.getElementById("last-update").innerHTML =
+        '<span class="upd-prefix">Cập nhật: </span>' +
+        new Date().toLocaleTimeString("vi-VN", { hour12: false });
     } catch (e) {
       toast("Lỗi tải dữ liệu: " + e.message, true);
     } finally {
       refreshing = false;
       nextRefreshAt = Date.now() + REFRESH_MS;
-      document.getElementById("btn-refresh").textContent = "⟳";
+      document.getElementById("btn-refresh").classList.remove("spinning");
     }
   }
 
