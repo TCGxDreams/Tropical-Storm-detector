@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StormWatch — Theo dõi bão toàn cầu</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌀</text></svg>">
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- ===== Header ===== -->
+  <header id="topbar">
+    <div class="brand">
+      <span class="brand-icon">🌀</span>
+      <div class="brand-text">
+        <h1>StormWatch <span class="brand-sub">Global</span></h1>
+        <p>Theo dõi bão nhiệt đới toàn cầu · thời gian thực</p>
+      </div>
+    </div>
+
+    <div class="topbar-center">
+      <div id="view-mode" class="segmented">
+        <button data-mode="3d" class="active" title="Quả địa cầu 3D">3D</button>
+        <button data-mode="2.5d" title="Chế độ Columbus (2.5D)">2.5D</button>
+        <button data-mode="2d" title="Bản đồ phẳng">2D</button>
+      </div>
+      <button id="btn-rotate" class="icon-btn active" title="Tự động xoay địa cầu">🌍 Xoay</button>
+      <button id="btn-layers" class="icon-btn" title="Lớp bản đồ">🗺️ Lớp nền</button>
+    </div>
+
+    <div class="topbar-right">
+      <div id="live-badge" class="live-badge">
+        <span class="live-dot"></span> LIVE
+      </div>
+      <div class="refresh-info">
+        <div id="last-update">Đang tải dữ liệu…</div>
+        <div id="countdown" class="countdown"></div>
+      </div>
+      <button id="btn-refresh" class="icon-btn" title="Làm mới ngay">⟳</button>
+    </div>
+  </header>
+
+  <div id="main">
+    <!-- ===== Sidebar: storm list ===== -->
+    <aside id="sidebar">
+      <div class="sidebar-head">
+        <h2>Bão đang hoạt động</h2>
+        <span id="storm-count" class="count-pill">0</span>
+      </div>
+      <div id="storm-list" class="storm-list">
+        <div class="empty-state">Đang tải dữ liệu bão…</div>
+      </div>
+      <div class="sidebar-foot">
+        <div class="legend">
+          <div class="legend-title">Thang Saffir–Simpson</div>
+          <div class="legend-row"><span class="sw" style="background:#5ebaff"></span>Áp thấp NĐ</div>
+          <div class="legend-row"><span class="sw" style="background:#00faf4"></span>Bão nhiệt đới</div>
+          <div class="legend-row"><span class="sw" style="background:#ffffb2"></span>Cấp 1</div>
+          <div class="legend-row"><span class="sw" style="background:#ffd37f"></span>Cấp 2</div>
+          <div class="legend-row"><span class="sw" style="background:#ffa64d"></span>Cấp 3</div>
+          <div class="legend-row"><span class="sw" style="background:#ff7326"></span>Cấp 4</div>
+          <div class="legend-row"><span class="sw" style="background:#ff3d3d"></span>Cấp 5</div>
+        </div>
+        <div class="sources">Nguồn: GDACS · NOAA NHC · NASA GIBS</div>
+      </div>
+    </aside>
+
+    <!-- ===== Globe ===== -->
+    <div id="globe-wrap">
+      <div id="cesiumContainer"></div>
+
+      <!-- Layers panel -->
+      <div id="layers-panel" class="panel hidden">
+        <div class="panel-head">
+          <h3>Lớp bản đồ</h3>
+          <button class="panel-close" data-close="layers-panel">✕</button>
+        </div>
+        <div class="panel-body">
+          <div class="opt-group">
+            <div class="opt-title">Ảnh nền (NASA GIBS)</div>
+            <label><input type="radio" name="baselayer" value="trueColor" checked> Ảnh vệ tinh màu thật (hôm nay)</label>
+            <label><input type="radio" name="baselayer" value="blueMarble"> Blue Marble (NASA)</label>
+            <label><input type="radio" name="baselayer" value="nightLights"> Đèn đêm (Black Marble)</label>
+            <label><input type="radio" name="baselayer" value="osm"> Bản đồ đường (OSM)</label>
+          </div>
+          <div class="opt-group">
+            <div class="opt-title">Lớp phủ</div>
+            <label><input type="checkbox" id="ovl-ref" checked> Bờ biển & biên giới</label>
+            <label><input type="checkbox" id="ovl-labels"> Tên địa danh</label>
+            <label><input type="checkbox" id="ovl-cones" checked> Nón dự báo / vùng ảnh hưởng</label>
+            <label><input type="checkbox" id="ovl-tracks" checked> Đường đi của bão</label>
+          </div>
+          <div class="opt-group">
+            <div class="opt-title">Độ sáng ảnh nền</div>
+            <input type="range" id="brightness" min="0.3" max="1.6" step="0.05" value="1">
+          </div>
+        </div>
+      </div>
+
+      <!-- Storm detail panel -->
+      <div id="detail-panel" class="panel hidden">
+        <div class="panel-head">
+          <h3 id="detail-title">Chi tiết bão</h3>
+          <button class="panel-close" data-close="detail-panel">✕</button>
+        </div>
+        <div class="panel-body" id="detail-body"></div>
+      </div>
+
+      <div id="status-toast" class="toast hidden"></div>
+      <div id="attribution">Ảnh: NASA GIBS / EOSDIS · Dữ liệu bão: GDACS, NOAA/NHC</div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Cesium.js"></script>
+  <script src="js/storms.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
