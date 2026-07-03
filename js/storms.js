@@ -129,10 +129,22 @@ const StormData = (() => {
       result.errors.push("NHC: " + e.message);
     }
 
-    // Gộp: lấy GDACS làm gốc, bổ sung áp suất/hướng di chuyển từ NHC (khớp theo tên)
-    const byName = new Map(gdacsStorms.map((s) => [s.name, s]));
+    // Khử trùng lặp trong GDACS: một sự kiện có thể xuất hiện nhiều lần
+    // (nhiều episode) -> chỉ giữ bản ghi mới nhất cho mỗi eventid
+    const byEvent = new Map();
+    for (const s of gdacsStorms) {
+      const key = s.eventid ?? s.name;
+      const prev = byEvent.get(key);
+      if (!prev || (s.episodeid || 0) > (prev.episodeid || 0)) byEvent.set(key, s);
+    }
+    gdacsStorms = [...byEvent.values()];
+
+    // Gộp: lấy GDACS làm gốc, bổ sung áp suất/hướng di chuyển từ NHC.
+    // Khớp theo tên gốc (bỏ số/năm/ký tự phụ): "MAYSAK-26" ~ "MAYSAK"
+    const baseName = (n) => String(n).replace(/[^A-Z]/gi, "").toUpperCase();
+    const byName = new Map(gdacsStorms.map((s) => [baseName(s.name), s]));
     for (const n of nhcStorms) {
-      const g = byName.get(n.name);
+      const g = byName.get(baseName(n.name));
       if (g) {
         g.pressure = g.pressure ?? n.pressure;
         g.movement = g.movement ?? n.movement;
