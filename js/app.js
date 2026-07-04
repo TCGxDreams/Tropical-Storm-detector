@@ -357,11 +357,84 @@
   }
 
   function redrawAll() {
+    stopPlayback();
     stormSource.entities.removeAll();
     for (const s of storms) {
       drawStorm(s);
       drawTrack(s);
     }
+  }
+
+  /* ================= 4b. Phát lại quỹ đạo bão ================= */
+
+  let playback = null;
+
+  function stopPlayback() {
+    if (!playback) return;
+    cancelAnimationFrame(playback.raf);
+    clearTimeout(playback.endTimer);
+    try { stormSource.entities.remove(playback.ent); } catch { /* đã bị removeAll */ }
+    playback = null;
+    document.getElementById("btn-playtrack")?.classList.remove("active");
+  }
+
+  function playTrack(s) {
+    const pts = (s.track?.points || [])
+      .filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+    if (pts.length < 2) {
+      toast("Chưa có dữ liệu quỹ đạo của cơn bão này.");
+      return;
+    }
+    stopPlayback();
+
+    const ent = stormSource.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(pts[0].lon, pts[0].lat),
+      billboard: {
+        image: hurricaneIcon("#ffffff"),
+        width: 36,
+        height: 36,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      label: {
+        text: "",
+        font: "600 12px 'Segoe UI', sans-serif",
+        fillColor: Cesium.Color.WHITE,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        outlineColor: Cesium.Color.fromCssColorString("#05080f"),
+        outlineWidth: 4,
+        pixelOffset: new Cesium.Cartesian2(0, 30),
+        verticalOrigin: Cesium.VerticalOrigin.TOP,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        showBackground: true,
+        backgroundColor: Cesium.Color.fromCssColorString("#05080f").withAlpha(0.6),
+      },
+    });
+
+    const DUR = Math.min(12000, Math.max(5000, pts.length * 900));
+    const t0 = performance.now();
+    const step = (now) => {
+      if (!playback) return;
+      const prog = Math.min(1, (now - t0) / DUR);
+      const f = prog * (pts.length - 1);
+      const i = Math.min(pts.length - 2, Math.floor(f));
+      const frac = f - i;
+      const lat = pts[i].lat + (pts[i + 1].lat - pts[i].lat) * frac;
+      const lon = pts[i].lon + (pts[i + 1].lon - pts[i].lon) * frac;
+      ent.position = Cesium.Cartesian3.fromDegrees(lon, lat);
+
+      const cur = pts[Math.round(f)];
+      const d = cur.date ? new Date(cur.date) : null;
+      const when = d && !isNaN(d)
+        ? d.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit" }) : "";
+      ent.label.text = `${cur.windKmh || "?"} km/h${when ? "  ·  " + when : ""}`;
+      ent.billboard.image = hurricaneIcon(StormData.categorize(cur.windKmh || 0).color);
+
+      if (prog < 1) playback.raf = requestAnimationFrame(step);
+      else playback.endTimer = setTimeout(stopPlayback, 1500);
+    };
+    playback = { stormId: s.id, ent, raf: requestAnimationFrame(step), endTimer: 0 };
+    document.getElementById("btn-playtrack")?.classList.add("active");
   }
 
   /* ================= 5. Sidebar & panel chi tiết ================= */
@@ -392,7 +465,8 @@
             <span class="alert-dot" style="background:${StormData.ALERT_COLORS[s.alertLevel] || "#3dd68c"}"></span>
             ${s.name}
           </div>
-          <div class="storm-meta">${s.category.label} · ${s.countries || s.source}</div>
+          <div class="storm-meta">${s.category.label} · ${s.countries || s.source}${
+            myLoc ? ` · cách bạn ${Math.round(distKm(s.lat, s.lon, myLoc.lat, myLoc.lon))} km` : ""}</div>
         </div>
       </div>`).join("");
 
@@ -406,6 +480,7 @@
     const s = storms.find((x) => x.id === id);
     renderList();
     if (!s) return;
+    try { history.replaceState(null, "", `?storm=${encodeURIComponent(id)}`); } catch { /* file:// */ }
 
     if (fly) {
       pauseAutoRotate();
@@ -448,11 +523,19 @@
         ${s.population ? `<div><b>Mức độ:</b> ${s.population}</div>` : ""}
         <div><b>Cập nhật:</b> ${fmtDate(s.updated)}</div>
         <div><b>Nguồn:</b> ${s.source}</div>
+        ${myLoc ? `<div><b>Cách vị trí của bạn:</b> ${Math.round(distKm(s.lat, s.lon, myLoc.lat, myLoc.lon))} km</div>` : ""}
       </div>
+      ${(s.track?.points?.length || 0) >= 2 ? `
+        <button id="btn-playtrack" class="icon-btn playtrack">
+          <svg class="icon"><use href="#i-play"/></svg><span>Phát lại quỹ đạo</span>
+        </button>` : ""}
       ${windChartHtml(s)}
       <a class="detail-link" href="${s.reportUrl}" target="_blank" rel="noopener">
         Xem báo cáo đầy đủ <svg class="icon"><use href="#i-external"/></svg></a>`;
     document.getElementById("detail-panel").classList.remove("hidden");
+    document.getElementById("btn-playtrack")?.addEventListener("click", () => {
+      playback && playback.stormId === s.id ? stopPlayback() : playTrack(s);
+    });
     renderWindChart(s);
   }
 
@@ -544,6 +627,224 @@
     el.classList.add("hidden");
   });
 
+  /* ================= 5c. Vị trí của tôi ================= */
+
+  let myLoc = settings.myLoc || null;
+  const locSource = new Cesium.CustomDataSource("me");
+  viewer.dataSources.add(locSource);
+
+  function drawMyLocation() {
+    locSource.entities.removeAll();
+    if (!myLoc) return;
+    locSource.entities.add({
+      position: Cesium.Cartesian3.fromDegrees(myLoc.lon, myLoc.lat),
+      point: {
+        pixelSize: 11,
+        color: Cesium.Color.fromCssColorString("#3d8bff"),
+        outlineColor: Cesium.Color.WHITE,
+        outlineWidth: 2.5,
+        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+      label: {
+        text: "Bạn",
+        font: "600 12px 'Segoe UI', sans-serif",
+        fillColor: Cesium.Color.WHITE,
+        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+        outlineColor: Cesium.Color.fromCssColorString("#05080f"),
+        outlineWidth: 4,
+        pixelOffset: new Cesium.Cartesian2(0, -16),
+        verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      },
+    });
+    document.getElementById("btn-locate").classList.add("active");
+  }
+  drawMyLocation();
+
+  document.getElementById("btn-locate").addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      toast("Trình duyệt không hỗ trợ định vị.", true);
+      return;
+    }
+    toast("Đang xác định vị trí của bạn…");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        myLoc = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        saveSettings({ myLoc });
+        drawMyLocation();
+        renderList();
+        pauseAutoRotate();
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(myLoc.lon, myLoc.lat, 3000000),
+          duration: 1.8,
+        });
+        toast("Đã ghim vị trí của bạn — các thẻ bão giờ hiện khoảng cách tới bạn.");
+      },
+      () => toast("Không lấy được vị trí (bạn đã từ chối quyền định vị?).", true),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 }
+    );
+  });
+
+  /* ================= 5d. Chia sẻ & liên kết sâu ================= */
+
+  document.getElementById("btn-share").addEventListener("click", async () => {
+    const s = storms.find((x) => x.id === selectedId);
+    if (!s) return;
+    const url = `${location.origin}${location.pathname}?storm=${encodeURIComponent(s.id)}`;
+    const text = `${s.category.label} ${s.name} — gió ${s.windKmh} km/h. Theo dõi trực tiếp:`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "StormWatch Global", text, url }); } catch { /* huỷ */ }
+    } else {
+      try {
+        await navigator.clipboard.writeText(`${text} ${url}`);
+        toast("Đã sao chép liên kết chia sẻ vào clipboard.");
+      } catch {
+        toast(url);
+      }
+    }
+  });
+
+  let deepLinkDone = false;
+  function applyDeepLink() {
+    if (deepLinkDone) return;
+    deepLinkDone = true;
+    const id = new URLSearchParams(location.search).get("storm");
+    if (id && storms.some((s) => s.id === id)) selectStorm(id, true);
+  }
+
+  /* ================= 5e. Thông báo bão mới / mạnh lên ================= */
+
+  let prevWinds = null; // Map id -> windKmh của lần làm mới trước
+
+  function notifyEnabled() {
+    return "Notification" in window && Notification.permission === "granted" &&
+      loadSettings().notify;
+  }
+
+  function updateNotifyBtn() {
+    document.getElementById("btn-notify").classList.toggle("active", !!notifyEnabled());
+  }
+  updateNotifyBtn();
+
+  document.getElementById("btn-notify").addEventListener("click", async () => {
+    if (!("Notification" in window)) {
+      toast("Trình duyệt không hỗ trợ thông báo.", true);
+      return;
+    }
+    if (Notification.permission === "denied") {
+      toast("Thông báo đang bị chặn — hãy cấp quyền trong cài đặt trình duyệt.", true);
+      return;
+    }
+    if (notifyEnabled()) {
+      saveSettings({ notify: false });
+      toast("Đã tắt thông báo bão.");
+    } else {
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") {
+        saveSettings({ notify: true });
+        toast("Sẽ thông báo khi có bão mới hoặc bão mạnh lên (khi trang đang mở).");
+      } else {
+        toast("Chưa được cấp quyền thông báo.", true);
+      }
+    }
+    updateNotifyBtn();
+  });
+
+  function checkStormNotifications() {
+    const snap = new Map(
+      storms.filter((s) => s.source !== "DEMO").map((s) => [s.id, s.windKmh]));
+    if (notifyEnabled() && prevWinds) {
+      for (const [id, w] of snap) {
+        const s = storms.find((x) => x.id === id);
+        try {
+          if (!prevWinds.has(id)) {
+            new Notification(`Bão mới: ${s.name}`, {
+              body: `${s.category.label} · gió ${w} km/h · ${s.countries || ""}`,
+              icon: "icons/icon.svg", tag: `new-${id}`,
+            });
+          } else if (w - prevWinds.get(id) >= 30) {
+            new Notification(`Bão ${s.name} đang mạnh lên`, {
+              body: `Gió tăng lên ${w} km/h (${s.category.label})`,
+              icon: "icons/icon.svg", tag: `up-${id}`,
+            });
+          }
+        } catch { /* một số trình duyệt chặn constructor */ }
+      }
+    }
+    prevWinds = snap;
+  }
+
+  /* ================= 5f. Bảng so sánh các cơn bão ================= */
+
+  let cmpSort = { key: "windKmh", dir: -1 };
+
+  const CMP_COLS = [
+    { key: "name", label: "Tên" },
+    { key: "windKmh", label: "Gió (km/h)" },
+    { key: "pressure", label: "Áp suất" },
+    { key: "vnDist", label: "Cách VN" },
+    { key: "userDist", label: "Cách bạn" },
+  ];
+
+  function renderCompare() {
+    const cols = CMP_COLS.filter((c) => c.key !== "userDist" || myLoc);
+    const rows = storms.map((s) => ({
+      id: s.id,
+      name: s.name,
+      cat: s.category,
+      windKmh: s.windKmh,
+      pressure: s.pressure,
+      vnDist: Math.round(Math.min(...VN_COAST.map(([la, lo]) => distKm(s.lat, s.lon, la, lo)))),
+      userDist: myLoc ? Math.round(distKm(s.lat, s.lon, myLoc.lat, myLoc.lon)) : null,
+    }));
+    rows.sort((a, b) => {
+      const va = a[cmpSort.key], vb = b[cmpSort.key];
+      if (typeof va === "string") return va.localeCompare(vb) * cmpSort.dir;
+      return ((va ?? -Infinity) - (vb ?? -Infinity)) * cmpSort.dir;
+    });
+
+    const arrow = (k) => (cmpSort.key === k ? (cmpSort.dir === 1 ? " ↑" : " ↓") : "");
+    document.getElementById("compare-table").innerHTML = `
+      <thead><tr>${cols.map((c) =>
+        `<th data-key="${c.key}">${c.label}${arrow(c.key)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.map((r) => `
+        <tr data-id="${r.id}">
+          <td><span class="dot" style="background:${r.cat.color}"></span>${r.name}
+            <small>${r.cat.short}</small></td>
+          <td>${r.windKmh || "—"}</td>
+          <td>${r.pressure ?? "—"}</td>
+          <td>${r.vnDist} km</td>
+          ${myLoc ? `<td>${r.userDist} km</td>` : ""}
+        </tr>`).join("")}</tbody>`;
+
+    document.querySelectorAll("#compare-table th").forEach((th) => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.key;
+        cmpSort = { key, dir: cmpSort.key === key ? -cmpSort.dir : (key === "name" ? 1 : -1) };
+        renderCompare();
+      });
+    });
+    document.querySelectorAll("#compare-table tbody tr").forEach((tr) => {
+      tr.addEventListener("click", () => {
+        document.getElementById("compare-modal").classList.add("hidden");
+        selectStorm(tr.dataset.id, true);
+      });
+    });
+  }
+
+  document.getElementById("btn-compare").addEventListener("click", () => {
+    if (!storms.length) {
+      toast("Chưa có dữ liệu bão.");
+      return;
+    }
+    renderCompare();
+    document.getElementById("compare-modal").classList.remove("hidden");
+  });
+  document.getElementById("compare-modal").addEventListener("click", (e) => {
+    if (e.target.id === "compare-modal") e.currentTarget.classList.add("hidden");
+  });
+
   /* ================= 6. Tải & làm mới dữ liệu ================= */
 
   let nextRefreshAt = Date.now() + REFRESH_MS;
@@ -586,6 +887,8 @@
       renderList();
       redrawAll();
       updateVnAlert();
+      checkStormNotifications();
+      applyDeepLink();
       // Tải trước đường đi của vài cơn bão mạnh nhất
       storms.slice(0, 5).forEach(loadTrackFor);
 
@@ -694,7 +997,7 @@
     document.getElementById("layers-panel").classList.toggle("hidden");
   });
 
-  document.querySelectorAll(".panel-close").forEach((b) => {
+  document.querySelectorAll(".panel-close[data-close]").forEach((b) => {
     b.addEventListener("click", () => document.getElementById(b.dataset.close).classList.add("hidden"));
   });
 

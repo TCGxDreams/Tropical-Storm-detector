@@ -21,6 +21,11 @@ Trang web theo dõi bão nhiệt đới trên toàn thế giới với **quả �
 - 🇻🇳 **Cảnh báo bão gần Việt Nam**: banner tự hiện khi có bão cách bờ biển dưới ~1200 km
 - 💾 Tự nhớ cài đặt (lớp nền, lớp phủ, chế độ xem…) cho lần mở sau
 - 📲 Hỗ trợ **PWA** — có thể "Thêm vào màn hình chính" trên điện thoại
+- ▶️ **Phát lại quỹ đạo bão**: hoạt hình tâm bão chạy dọc đường đi kèm thời gian & sức gió
+- 📊 **Bảng so sánh các cơn bão** — sắp xếp theo gió / áp suất / khoảng cách, chạm để bay tới
+- 🔔 **Thông báo trình duyệt** khi có bão mới hoặc bão mạnh lên (khi trang đang mở)
+- 📍 **Vị trí của tôi** — ghim vị trí của bạn lên quả địa cầu, mọi thẻ bão hiện khoảng cách tới bạn
+- 🔗 **Chia sẻ cơn bão** — liên kết mở thẳng đúng cơn bão (`?storm=…`)
 - 🌐 Địa cầu tự xoay, biểu tượng bão xoáy động theo cường độ, màn hình khởi động mượt
 - 📱 Giao diện tối kiểu NASA, tối ưu cho điện thoại (bản đồ full màn hình, thẻ bão trượt ngang)
 
