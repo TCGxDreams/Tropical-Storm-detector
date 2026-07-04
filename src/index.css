@@ -15,16 +15,15 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-html, body {
+html, body, #root {
   height: 100%;
+  width: 100%;
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
 }
-body {
-  height: 100vh;
-  height: 100dvh; /* tránh bị thanh địa chỉ mobile che */
+#root {
   display: flex;
   flex-direction: column;
 }

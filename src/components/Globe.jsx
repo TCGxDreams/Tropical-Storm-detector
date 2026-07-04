@@ -76,6 +76,7 @@ export default function Globe({
   const autoRotateRef = useRef(autoRotate);
   const onSelectStormRef = useRef(onSelectStorm);
   const hasFlownToLocRef = useRef(myLoc ? true : false);
+  const lastFlownIdRef = useRef(null);
 
   // Sync refs to avoid dependency re-renders in some callbacks
   useEffect(() => {
@@ -432,18 +433,24 @@ export default function Globe({
     }
   }, [myLoc]);
 
-  // 5. Selected Storm camera flight (ONLY trigger when selectedId changes)
+  // 5. Selected Storm camera flight
   useEffect(() => {
-    if (!viewerRef.current || !selectedId) return;
-    const s = stormsRef.current.find((x) => x.id === selectedId);
-    if (!s) return;
+    if (!viewerRef.current || !selectedId) {
+      lastFlownIdRef.current = null;
+      return;
+    }
+    if (lastFlownIdRef.current === selectedId) return;
 
+    const s = storms.find((x) => x.id === selectedId);
+    if (!s) return; // Wait until storm data is loaded in the storms list
+
+    lastFlownIdRef.current = selectedId;
     rotatePausedUntilRef.current = Date.now() + 12000;
     viewerRef.current.camera.flyTo({
       destination: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 2200000),
       duration: 1.8,
     });
-  }, [selectedId]);
+  }, [selectedId, storms]);
 
   // 6. Playback logic
   useEffect(() => {
