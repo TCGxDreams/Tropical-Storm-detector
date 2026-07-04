@@ -73,12 +73,16 @@ export default function Globe({
   const tourTimerRef = useRef(null);
   const selectedIdRef = useRef(selectedId);
   const stormsRef = useRef(storms);
+  const autoRotateRef = useRef(autoRotate);
+  const onSelectStormRef = useRef(onSelectStorm);
 
   // Sync refs to avoid dependency re-renders in some callbacks
   useEffect(() => {
     selectedIdRef.current = selectedId;
     stormsRef.current = storms;
-  }, [selectedId, storms]);
+    autoRotateRef.current = autoRotate;
+    onSelectStormRef.current = onSelectStorm;
+  }, [selectedId, storms, autoRotate, onSelectStorm]);
 
   // 1. Initialize Cesium Viewer
   useEffect(() => {
@@ -126,14 +130,14 @@ export default function Globe({
     handler.setInputAction((movement) => {
       const picked = scene.pick(movement.position);
       const stormId = picked?.id?.properties?.stormId?.getValue?.();
-      if (stormId && onSelectStorm) {
-        onSelectStorm(stormId);
+      if (stormId && onSelectStormRef.current) {
+        onSelectStormRef.current(stormId);
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
     // Auto Rotation ticker
     const onTick = () => {
-      if (autoRotate && Date.now() > rotatePausedUntilRef.current && scene.mode === Cesium.SceneMode.SCENE3D) {
+      if (autoRotateRef.current && Date.now() > rotatePausedUntilRef.current && scene.mode === Cesium.SceneMode.SCENE3D) {
         viewer.camera.rotate(Cesium.Cartesian3.UNIT_Z, -0.0006);
       }
     };
@@ -153,7 +157,7 @@ export default function Globe({
       handler.destroy();
       viewer.destroy();
     };
-  }, [autoRotate, onSelectStorm]);
+  }, []);
 
   // 2. Base layer and overlays logic
   useEffect(() => {

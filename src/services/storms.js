@@ -9,6 +9,7 @@ const IBTRACS_ACTIVE_URL =
 
 // Proxy CORS dự phòng khi nguồn gốc không cho phép cross-origin
 const CORS_PROXIES = [
+  (u) => `/api/proxy?url=${encodeURIComponent(u)}`,
   (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
   (u) => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
 ];
@@ -192,6 +193,8 @@ export async function fetchActiveStorms() {
   }
 
   let ibtStorms = [];
+  // IBTrACS provisional active URL is currently offline (404), skip it to avoid console errors
+  /*
   try {
     const ibt = await fetchJSON(IBTRACS_ACTIVE_URL, 12000);
     if (Array.isArray(ibt)) {
@@ -202,6 +205,7 @@ export async function fetchActiveStorms() {
   } catch (e) {
     console.warn("IBTrACS:", e.message);
   }
+  */
 
   const byEvent = new Map();
   for (const s of gdacsStorms) {
