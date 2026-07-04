@@ -5,11 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#070c1a">
   <meta name="description" content="Theo dõi bão nhiệt đới toàn cầu thời gian thực trên quả địa cầu 3D kiểu NASA">
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="/manifest.json">
   <title>StormWatch — Theo dõi bão toàn cầu</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300e0ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 11a2 2 0 1 1-4 0 4 4 0 0 1 8 0 6 6 0 0 1-12 0 8 8 0 0 1 16 0 10 10 0 1 1-20 0 11.93 11.93 0 0 1 2.42-7.22 2 2 0 1 1 3.16 2.44'/%3E%3C/svg%3E">
-  <link href="https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <!-- ===== Bộ icon SVG (kiểu Lucide/Feather, nhúng sẵn — không cần CDN) ===== -->
@@ -68,184 +66,28 @@
       <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
       <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
     </symbol>
+    <symbol id="i-help" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </symbol>
+    <symbol id="i-download" viewBox="0 0 24 24">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+    </symbol>
+    <symbol id="i-search" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </symbol>
+    <symbol id="i-thermometer" viewBox="0 0 24 24">
+      <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+    </symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24">
+      <rect x="2" y="4" width="20" height="16" rx="2"/>
+      <path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10"/>
+    </symbol>
   </svg>
 
-  <!-- ===== Màn hình khởi động ===== -->
-  <div id="splash">
-    <svg class="splash-icon" aria-hidden="true"><use href="#i-storm"/></svg>
-    <div class="splash-title">StormWatch <span class="brand-sub">Global</span></div>
-    <div class="splash-text">Đang tải quả địa cầu &amp; dữ liệu bão…</div>
-  </div>
-
-  <!-- ===== Header ===== -->
-  <header id="topbar">
-    <div class="brand">
-      <svg class="brand-icon" aria-hidden="true"><use href="#i-storm"/></svg>
-      <div class="brand-text">
-        <h1>StormWatch <span class="brand-sub">Global</span></h1>
-        <p>Theo dõi bão nhiệt đới toàn cầu · thời gian thực</p>
-      </div>
-    </div>
-
-    <div class="topbar-center">
-      <div id="view-mode" class="segmented">
-        <button data-mode="3d" class="active" title="Quả địa cầu 3D">3D</button>
-        <button data-mode="2.5d" title="Chế độ Columbus (2.5D)">2.5D</button>
-        <button data-mode="2d" title="Bản đồ phẳng">2D</button>
-      </div>
-      <button id="btn-rotate" class="icon-btn active" title="Tự động xoay địa cầu">
-        <svg class="icon"><use href="#i-globe"/></svg><span class="btn-text">Xoay</span>
-      </button>
-      <button id="btn-layers" class="icon-btn" title="Lớp bản đồ">
-        <svg class="icon"><use href="#i-layers"/></svg><span class="btn-text">Lớp nền</span>
-      </button>
-      <button id="btn-tour" class="icon-btn" title="Bay qua tất cả các cơn bão">
-        <svg class="icon"><use href="#i-play"/></svg><span class="btn-text">Tour</span>
-      </button>
-    </div>
-
-    <div class="topbar-right">
-      <div id="live-badge" class="live-badge">
-        <span class="live-dot"></span> LIVE
-      </div>
-      <div class="refresh-info">
-        <div id="last-update">Đang tải dữ liệu…</div>
-        <div id="countdown" class="countdown"></div>
-      </div>
-      <button id="btn-refresh" class="icon-btn" title="Làm mới ngay">
-        <svg class="icon"><use href="#i-refresh"/></svg>
-      </button>
-    </div>
-  </header>
-
-  <div id="main">
-    <!-- ===== Sidebar: storm list ===== -->
-    <aside id="sidebar">
-      <div class="sidebar-head">
-        <h2>Bão đang hoạt động</h2>
-        <div class="sidebar-head-right">
-          <button id="btn-compare" class="mini-btn" title="Bảng so sánh các cơn bão">
-            <svg class="icon"><use href="#i-table"/></svg>
-          </button>
-          <span id="storm-count" class="count-pill">0</span>
-        </div>
-      </div>
-      <div id="storm-list" class="storm-list">
-        <div class="empty-state">Đang tải dữ liệu bão…</div>
-      </div>
-      <div class="sidebar-foot">
-        <div class="legend">
-          <div class="legend-title">Thang Saffir–Simpson</div>
-          <div class="legend-row"><span class="sw" style="background:#5ebaff"></span>Áp thấp NĐ</div>
-          <div class="legend-row"><span class="sw" style="background:#00faf4"></span>Bão nhiệt đới</div>
-          <div class="legend-row"><span class="sw" style="background:#ffffb2"></span>Cấp 1</div>
-          <div class="legend-row"><span class="sw" style="background:#ffd37f"></span>Cấp 2</div>
-          <div class="legend-row"><span class="sw" style="background:#ffa64d"></span>Cấp 3</div>
-          <div class="legend-row"><span class="sw" style="background:#ff7326"></span>Cấp 4</div>
-          <div class="legend-row"><span class="sw" style="background:#ff3d3d"></span>Cấp 5</div>
-        </div>
-        <div class="sources">Nguồn: GDACS · NOAA NHC · NASA GIBS</div>
-      </div>
-    </aside>
-
-    <!-- ===== Globe ===== -->
-    <div id="globe-wrap">
-      <div id="cesiumContainer"></div>
-
-      <!-- Layers panel -->
-      <div id="layers-panel" class="panel hidden">
-        <div class="panel-head">
-          <h3>Lớp bản đồ</h3>
-          <button class="panel-close" data-close="layers-panel" title="Đóng">
-            <svg class="icon"><use href="#i-x"/></svg>
-          </button>
-        </div>
-        <div class="panel-body">
-          <div class="opt-group">
-            <div class="opt-title">Ảnh nền (NASA GIBS)</div>
-            <label><input type="radio" name="baselayer" value="trueColor" checked> Ảnh vệ tinh màu thật (hôm nay)</label>
-            <label><input type="radio" name="baselayer" value="blueMarble"> Blue Marble (NASA)</label>
-            <label><input type="radio" name="baselayer" value="nightLights"> Đèn đêm (Black Marble)</label>
-            <label><input type="radio" name="baselayer" value="osm"> Bản đồ đường (OSM)</label>
-          </div>
-          <div class="opt-group">
-            <div class="opt-title">Lớp phủ</div>
-            <label><input type="checkbox" id="ovl-ref" checked> Bờ biển & biên giới</label>
-            <label><input type="checkbox" id="ovl-labels"> Tên địa danh</label>
-            <label><input type="checkbox" id="ovl-clouds"> Mây vệ tinh (hồng ngoại)</label>
-            <label><input type="checkbox" id="ovl-rain"> Mưa (GPM IMERG)</label>
-            <label><input type="checkbox" id="ovl-cones" checked> Nón dự báo / vùng ảnh hưởng</label>
-            <label><input type="checkbox" id="ovl-tracks" checked> Đường đi của bão</label>
-          </div>
-          <div class="opt-group">
-            <div class="opt-title">Hiệu ứng</div>
-            <label><input type="checkbox" id="chk-lighting"> Ánh sáng ngày / đêm thực</label>
-          </div>
-          <div class="opt-group">
-            <div class="opt-title">Độ sáng ảnh nền</div>
-            <input type="range" id="brightness" min="0.3" max="1.6" step="0.05" value="1">
-          </div>
-        </div>
-      </div>
-
-      <!-- Storm detail panel -->
-      <div id="detail-panel" class="panel hidden">
-        <div class="panel-head">
-          <h3 id="detail-title">Chi tiết bão</h3>
-          <div class="panel-head-btns">
-            <button class="panel-close" id="btn-share" title="Chia sẻ cơn bão này">
-              <svg class="icon"><use href="#i-share"/></svg>
-            </button>
-            <button class="panel-close" data-close="detail-panel" title="Đóng">
-              <svg class="icon"><use href="#i-x"/></svg>
-            </button>
-          </div>
-        </div>
-        <div class="panel-body" id="detail-body"></div>
-      </div>
-
-      <!-- Nút nổi trên bản đồ -->
-      <div id="map-fabs">
-        <button id="btn-notify" class="fab" title="Thông báo khi có bão mới / bão mạnh lên">
-          <svg class="icon"><use href="#i-bell"/></svg>
-        </button>
-        <button id="btn-locate" class="fab" title="Vị trí của tôi">
-          <svg class="icon"><use href="#i-crosshair"/></svg>
-        </button>
-      </div>
-
-      <!-- Bảng so sánh -->
-      <div id="compare-modal" class="modal hidden">
-        <div class="modal-card">
-          <div class="panel-head">
-            <h3>So sánh các cơn bão</h3>
-            <button class="panel-close" data-close="compare-modal" title="Đóng">
-              <svg class="icon"><use href="#i-x"/></svg>
-            </button>
-          </div>
-          <div class="modal-body">
-            <table id="compare-table"></table>
-            <div class="modal-hint">Chạm vào tiêu đề cột để sắp xếp · chạm vào hàng để bay tới cơn bão</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Cảnh báo bão gần Việt Nam -->
-      <div id="vn-alert" class="vn-alert hidden">
-        <svg class="icon"><use href="#i-alert"/></svg>
-        <span id="vn-alert-text"></span>
-        <button id="vn-alert-goto" title="Bay tới cơn bão"><svg class="icon"><use href="#i-nav"/></svg></button>
-        <button id="vn-alert-close" title="Ẩn cảnh báo"><svg class="icon"><use href="#i-x"/></svg></button>
-      </div>
-
-      <div id="status-toast" class="toast hidden"></div>
-      <div id="attribution">Ảnh: NASA GIBS / EOSDIS · Dữ liệu bão: GDACS, NOAA/NHC</div>
-    </div>
-  </div>
-
-  <script src="https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Cesium.js"></script>
-  <script src="js/storms.js"></script>
-  <script src="js/chart.js"></script>
-  <script src="js/app.js"></script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

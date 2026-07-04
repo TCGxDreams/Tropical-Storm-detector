@@ -1,71 +1,16 @@
-# 🌀 StormWatch Global — Theo dõi bão toàn cầu thời gian thực
+# React + Vite
 
-Trang web theo dõi bão nhiệt đới trên toàn thế giới với **quả địa cầu 3D kiểu NASA**, dữ liệu **cập nhật thời gian thực** và ảnh vệ tinh NASA.
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-![3D Globe](https://img.shields.io/badge/Map-3D%20%2F%202.5D%20%2F%202D-blue) ![Realtime](https://img.shields.io/badge/Data-Realtime-red) ![No build](https://img.shields.io/badge/Build-Không%20cần-green)
+Currently, two official plugins are available:
 
-## ✨ Tính năng
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-- 🌍 **Quả địa cầu 3D** (CesiumJS) với 3 chế độ xem: **3D**, **2.5D** (Columbus View) và **2D**
-- 🛰️ **Ảnh vệ tinh NASA GIBS**: ảnh màu thật cập nhật hàng ngày, Blue Marble, đèn đêm (Black Marble), kèm lớp phủ biên giới & địa danh
-- 🌀 **Dữ liệu bão thời gian thực** từ:
-  - **GDACS** (Global Disaster Alert and Coordination System — phạm vi toàn cầu)
-  - **NOAA / NHC** (National Hurricane Center — bổ sung áp suất, hướng di chuyển)
-- 🔄 **Tự động làm mới mỗi 5 phút** (có đồng hồ đếm ngược + nút làm mới ngay)
-- 🎨 Phân cấp bão theo thang **Saffir–Simpson** với màu chuẩn quốc tế
-- 📈 **Đường đi của bão** (quá khứ + dự báo), nón dự báo và vùng cảnh báo ảnh hưởng
-- 📋 Panel chi tiết từng cơn bão: sức gió, áp suất, mức cảnh báo, khu vực ảnh hưởng, **biểu đồ diễn biến sức gió** (có tooltip), link báo cáo đầy đủ
-- ☁️ Lớp phủ **mây vệ tinh hồng ngoại** (Himawari + GOES) và **mưa GPM IMERG**
-- 🌓 Chế độ **ánh sáng ngày / đêm thực** trên quả địa cầu
-- 🎬 Nút **Tour** bay lần lượt qua tất cả các cơn bão đang hoạt động
-- 🇻🇳 **Cảnh báo bão gần Việt Nam**: banner tự hiện khi có bão cách bờ biển dưới ~1200 km
-- 💾 Tự nhớ cài đặt (lớp nền, lớp phủ, chế độ xem…) cho lần mở sau
-- 📲 Hỗ trợ **PWA** — có thể "Thêm vào màn hình chính" trên điện thoại
-- ▶️ **Phát lại quỹ đạo bão**: hoạt hình tâm bão chạy dọc đường đi kèm thời gian & sức gió
-- 📊 **Bảng so sánh các cơn bão** — sắp xếp theo gió / áp suất / khoảng cách, chạm để bay tới
-- 🔔 **Thông báo trình duyệt** khi có bão mới hoặc bão mạnh lên (khi trang đang mở)
-- 📍 **Vị trí của tôi** — ghim vị trí của bạn lên quả địa cầu, mọi thẻ bão hiện khoảng cách tới bạn
-- 🔗 **Chia sẻ cơn bão** — liên kết mở thẳng đúng cơn bão (`?storm=…`)
-- 🌐 Địa cầu tự xoay, biểu tượng bão xoáy động theo cường độ, màn hình khởi động mượt
-- 📱 Giao diện tối kiểu NASA, tối ưu cho điện thoại (bản đồ full màn hình, thẻ bão trượt ngang)
+## React Compiler
 
-## 🚀 Cách chạy
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
 
-Không cần cài đặt hay build — chỉ là HTML/CSS/JS thuần:
+## Expanding the Oxlint configuration
 
-```bash
-# Cách 1: dùng Python
-python3 -m http.server 8080
-
-# Cách 2: dùng Node.js
-npx serve .
-```
-
-Rồi mở trình duyệt tại **http://localhost:8080**
-
-> Cũng có thể mở trực tiếp file `index.html`, nhưng chạy qua HTTP server được khuyến nghị để tránh hạn chế CORS của trình duyệt.
-
-## 🗂️ Cấu trúc
-
-```
-├── index.html      # Trang chính
-├── css/style.css   # Giao diện (dark theme kiểu NASA)
-└── js/
-    ├── storms.js   # Lớp dữ liệu: GDACS + NOAA NHC, fallback CORS proxy
-    └── app.js      # Cesium globe, lớp ảnh GIBS, vẽ bão, UI
-```
-
-## 📡 Nguồn dữ liệu
-
-| Nguồn | Dùng cho | Địa chỉ |
-|---|---|---|
-| GDACS | Danh sách bão toàn cầu, đường đi, vùng ảnh hưởng | gdacs.org |
-| NOAA NHC | Bão Đại Tây Dương / Đông TBD (áp suất, di chuyển) | nhc.noaa.gov |
-| NASA GIBS | Ảnh vệ tinh nền (WMTS) | gibs.earthdata.nasa.gov |
-
-Nếu tất cả nguồn dữ liệu đều không truy cập được (mất mạng…), trang sẽ hiển thị **dữ liệu mẫu** kèm cảnh báo `DEMO` để giao diện vẫn xem được.
-
-## ⚠️ Lưu ý
-
-- Dữ liệu chỉ mang tính tham khảo. Khi có bão, hãy theo dõi bản tin chính thức của **Trung tâm Dự báo KTTV Quốc gia** (nchmf.gov.vn).
-- Ảnh vệ tinh "màu thật" lấy của ngày hôm trước vì NASA GIBS xử lý ảnh trễ vài giờ.
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
