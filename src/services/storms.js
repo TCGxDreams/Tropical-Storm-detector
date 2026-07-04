@@ -332,7 +332,11 @@ export async function fetchActiveStorms() {
   }
   gdacsStorms = [...byEvent.values()];
 
-  const baseName = (n) => String(n).replace(/&[^;]+;/g, "").replace(/[^A-Z]/gi, "").toUpperCase();
+  const baseName = (n) => {
+    const str = String(n).toUpperCase();
+    if (str.startsWith("TC-")) return str;
+    return str.replace(/&[^;]+;/g, "").replace(/[^A-Z]/gi, "");
+  };
   const byName = new Map(gdacsStorms.map((s) => [baseName(s.name), s]));
   for (const n of nhcStorms) {
     const g = byName.get(baseName(n.name));

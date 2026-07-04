@@ -3,7 +3,7 @@
  * Cache app shell, ảnh GIBS, dữ liệu bão
  * ============================================================ */
 
-const CACHE_VERSION = "sw-react-v1";
+const CACHE_VERSION = "sw-react-v2";
 const APP_CACHE = `app-${CACHE_VERSION}`;
 const GIBS_CACHE = `gibs-${CACHE_VERSION}`;
 const DATA_CACHE = `data-${CACHE_VERSION}`;
@@ -50,6 +50,9 @@ self.addEventListener("fetch", (e) => {
 
   // Bỏ qua các request không phải GET
   if (e.request.method !== "GET") return;
+
+  // Bỏ qua các request API nội bộ (để Vercel proxy hoạt động thời gian thực)
+  if (url.pathname.startsWith("/api/")) return;
 
   // 1) Ảnh vệ tinh NASA GIBS → Stale-While-Revalidate (ảnh rất ít đổi)
   if (url.hostname === "gibs.earthdata.nasa.gov") {
