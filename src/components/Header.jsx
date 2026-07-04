@@ -31,14 +31,7 @@ export default function Header({
           >
             3D
           </button>
-          <button 
-            data-mode="2.5d" 
-            className={viewMode === "2.5d" ? "active" : ""} 
-            onClick={() => onViewModeChange("2.5d")}
-            title="Chế độ Columbus (2.5D)"
-          >
-            2.5D
-          </button>
+
           <button 
             data-mode="2d" 
             className={viewMode === "2d" ? "active" : ""} 

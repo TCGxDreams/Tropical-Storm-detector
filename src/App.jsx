@@ -277,9 +277,6 @@ export default function App() {
         setViewMode("3d");
         saveSettings({ mode: "3d" });
       } else if (key === "2") {
-        setViewMode("2.5d");
-        saveSettings({ mode: "2.5d" });
-      } else if (key === "3") {
         setViewMode("2d");
         saveSettings({ mode: "2d" });
       } else if (key === "?" || e.key === "?") {

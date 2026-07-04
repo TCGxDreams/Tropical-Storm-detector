@@ -16,23 +16,23 @@ export function GuideModal({ isOpen, onClose }) {
           <div className="guide-section">
             <h4>🌍 Điều khiển bản đồ</h4>
             <div className="guide-grid">
-              <div className="guide-item"><span class="guide-key">Kéo chuột</span><span>Xoay quả địa cầu</span></div>
-              <div className="guide-item"><span class="guide-key">Cuộn chuột</span><span>Phóng to / thu nhỏ</span></div>
-              <div className="guide-item"><span class="guide-key">Chuột phải + kéo</span><span>Nghiêng góc nhìn</span></div>
-              <div className="guide-item"><span class="guide-key">Click cơn bão</span><span>Xem chi tiết</span></div>
+              <div className="guide-item"><span className="guide-key">Kéo chuột</span><span>Xoay quả địa cầu</span></div>
+              <div className="guide-item"><span className="guide-key">Cuộn chuột</span><span>Phóng to / thu nhỏ</span></div>
+              <div className="guide-item"><span className="guide-key">Chuột phải + kéo</span><span>Nghiêng góc nhìn</span></div>
+              <div className="guide-item"><span className="guide-key">Click cơn bão</span><span>Xem chi tiết</span></div>
             </div>
           </div>
           <div className="guide-section">
             <h4>⌨️ Phím tắt</h4>
             <div className="guide-grid">
-              <div className="guide-item"><span class="guide-key">R</span><span>Bật/tắt tự xoay</span></div>
-              <div className="guide-item"><span class="guide-key">T</span><span>Tour bay qua các bão</span></div>
-              <div className="guide-item"><span class="guide-key">L</span><span>Mở/đóng lớp bản đồ</span></div>
-              <div className="guide-item"><span class="guide-key">F</span><span>Làm mới dữ liệu</span></div>
-              <div className="guide-item"><span class="guide-key">/</span><span>Tìm kiếm bão</span></div>
-              <div className="guide-item"><span class="guide-key">1 · 2 · 3</span><span>Chế độ 3D · 2.5D · 2D</span></div>
-              <div className="guide-item"><span class="guide-key">Esc</span><span>Đóng panel</span></div>
-              <div className="guide-item"><span class="guide-key">?</span><span>Mở hướng dẫn này</span></div>
+              <div className="guide-item"><span className="guide-key">R</span><span>Bật/tắt tự xoay</span></div>
+              <div className="guide-item"><span className="guide-key">T</span><span>Tour bay qua các bão</span></div>
+              <div className="guide-item"><span className="guide-key">L</span><span>Mở/đóng lớp bản đồ</span></div>
+              <div className="guide-item"><span className="guide-key">F</span><span>Làm mới dữ liệu</span></div>
+              <div className="guide-item"><span className="guide-key">/</span><span>Tìm kiếm bão</span></div>
+              <div className="guide-item"><span className="guide-key">1 · 2</span><span>Chế độ 3D · 2D</span></div>
+              <div className="guide-item"><span className="guide-key">Esc</span><span>Đóng panel</span></div>
+              <div className="guide-item"><span className="guide-key">?</span><span>Mở hướng dẫn này</span></div>
             </div>
           </div>
           <div className="guide-section">

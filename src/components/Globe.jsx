@@ -587,15 +587,13 @@ export default function Globe({
     };
   }, [tourActive, onSelectStorm, onStopTour]);
 
-  // 8. View Mode (3D / 2.5D / 2D) morphing
+  // 8. View Mode (3D / 2D) morphing
   useEffect(() => {
     if (!viewerRef.current) return;
     const scene = viewerRef.current.scene;
     const dur = 1.6;
 
-    if (viewMode === "2.5d") {
-      scene.morphToColumbusView(dur);
-    } else if (viewMode === "2d") {
+    if (viewMode === "2d") {
       scene.morphTo2D(dur);
     } else {
       scene.morphTo3D(dur);
