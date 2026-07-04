@@ -62,6 +62,7 @@ export default function Globe({
   onStopTour,
   playbackStorm,
   onStopPlayback,
+  viewMode,
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -197,7 +198,7 @@ export default function Globe({
         gibsProvider("GOES-West_ABI_Band13_Clean_Infrared", 7, "png"),
       ] },
       rain:   { alpha: 0.85, providers: () => [gibsProvider("IMERG_Precipitation_Rate", 6, "png")] },
-      sst:    { alpha: 0.65, providers: () => [gibsProvider("GHRSST_L4_MUR_Sea_Surface_Temperature", 6, "png", gibsDate())] },
+      sst:    { alpha: 0.65, providers: () => [gibsProvider("GHRSST_MUR_SST", 6, "png", gibsDate())] },
     };
 
     // a. Update Base Layer
@@ -585,6 +586,21 @@ export default function Globe({
       clearTimeout(tourTimerRef.current);
     };
   }, [tourActive, onSelectStorm, onStopTour]);
+
+  // 8. View Mode (3D / 2.5D / 2D) morphing
+  useEffect(() => {
+    if (!viewerRef.current) return;
+    const scene = viewerRef.current.scene;
+    const dur = 1.6;
+
+    if (viewMode === "2.5d") {
+      scene.morphToColumbusView(dur);
+    } else if (viewMode === "2d") {
+      scene.morphTo2D(dur);
+    } else {
+      scene.morphTo3D(dur);
+    }
+  }, [viewMode]);
 
   return <div ref={containerRef} id="cesiumContainer" style={{ width: "100%", height: "100%" }} />;
 }

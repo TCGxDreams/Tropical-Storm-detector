@@ -25,6 +25,7 @@ export default function App() {
 
   // Imagery & Overlay Settings
   const [baseLayer, setBaseLayer] = useState(() => getSetting("base", "trueColor"));
+  const [viewMode, setViewMode] = useState(() => getSetting("mode", "3d"));
   const [brightness, setBrightness] = useState(() => getSetting("brightness", 1));
   const [lighting, setLighting] = useState(() => getSetting("lighting", false));
   const [autoRotate, setAutoRotate] = useState(() => getSetting("autoRotate", true));
@@ -273,11 +274,14 @@ export default function App() {
           searchInput.select();
         }
       } else if (key === "1") {
-        setBaseLayer("trueColor");
+        setViewMode("3d");
+        saveSettings({ mode: "3d" });
       } else if (key === "2") {
-        setBaseLayer("blueMarble");
+        setViewMode("2.5d");
+        saveSettings({ mode: "2.5d" });
       } else if (key === "3") {
-        setBaseLayer("nightLights");
+        setViewMode("2d");
+        saveSettings({ mode: "2d" });
       } else if (key === "?" || e.key === "?") {
         setHelpOpen((prev) => !prev);
       } else if (e.key === "Escape") {
@@ -311,10 +315,10 @@ export default function App() {
       )}
 
       <Header
-        viewMode={baseLayer === "osm" ? "2d" : "3d"}
+        viewMode={viewMode}
         onViewModeChange={(mode) => {
-          if (mode === "2d") setBaseLayer("osm");
-          else setBaseLayer("trueColor");
+          setViewMode(mode);
+          saveSettings({ mode });
         }}
         autoRotate={autoRotate}
         onToggleRotate={() => setAutoRotate((prev) => { saveSettings({ autoRotate: !prev }); return !prev; })}
@@ -358,6 +362,7 @@ export default function App() {
             onStopTour={() => setTourActive(false)}
             playbackStorm={playbackStorm}
             onStopPlayback={() => setPlaybackStorm(null)}
+            viewMode={viewMode}
           />
 
           {/* Lớp bản đồ panel */}
