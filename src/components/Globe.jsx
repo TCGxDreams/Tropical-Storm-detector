@@ -75,6 +75,7 @@ export default function Globe({
   const stormsRef = useRef(storms);
   const autoRotateRef = useRef(autoRotate);
   const onSelectStormRef = useRef(onSelectStorm);
+  const hasFlownToLocRef = useRef(myLoc ? true : false);
 
   // Sync refs to avoid dependency re-renders in some callbacks
   useEffect(() => {
@@ -417,6 +418,17 @@ export default function Globe({
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
       });
+
+      if (!hasFlownToLocRef.current) {
+        hasFlownToLocRef.current = true;
+        rotatePausedUntilRef.current = Date.now() + 12000;
+        viewerRef.current.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(myLoc.lon, myLoc.lat, 3000000),
+          duration: 2.0,
+        });
+      }
+    } else {
+      hasFlownToLocRef.current = false;
     }
   }, [myLoc]);
 
