@@ -29,6 +29,108 @@ body {
   flex-direction: column;
 }
 
+/* ============ Màn hình khởi động ============ */
+#splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: radial-gradient(ellipse at 50% 40%, #0b1226 0%, var(--bg) 70%);
+  transition: opacity .55s ease;
+}
+#splash.fade-out { opacity: 0; pointer-events: none; }
+.splash-icon {
+  width: 64px; height: 64px;
+  fill: none;
+  stroke: var(--accent2);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 18px rgba(0, 224, 255, .55));
+  animation: spin 3.5s linear infinite;
+}
+.splash-title { font-size: 22px; font-weight: 700; letter-spacing: .5px; }
+.splash-text { font-size: 13px; color: var(--text-dim); animation: blink 1.6s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .45; } }
+
+/* ============ Cảnh báo bão gần Việt Nam ============ */
+.vn-alert {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  max-width: min(94%, 560px);
+  padding: 9px 12px 9px 14px;
+  background: rgba(64, 18, 18, 0.88);
+  border: 1px solid rgba(255, 61, 61, 0.55);
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffd9d9;
+  z-index: 16;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 30px rgba(255, 61, 61, .18);
+  animation: slideDown .25s ease;
+}
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px);} to { opacity: 1; transform: none;} }
+.vn-alert.hidden { display: none; }
+.vn-alert > .icon { color: #ff6b6b; width: 18px; height: 18px; }
+.vn-alert button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,.1);
+  border: none;
+  border-radius: 50%;
+  width: 28px; height: 28px;
+  color: #ffd9d9;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.vn-alert button:hover { background: rgba(255,255,255,.22); }
+.vn-alert button .icon { width: 14px; height: 14px; }
+
+/* ============ Biểu đồ sức gió ============ */
+.wind-chart-sec { margin: 4px 0 10px; }
+.wind-chart-sec .k {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .8px;
+  color: var(--text-dim); margin-bottom: 6px;
+}
+.wind-chart-wrap { position: relative; }
+.wind-chart-wrap canvas { display: block; touch-action: none; }
+.chart-tip {
+  display: none;
+  position: absolute;
+  background: #131c33;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  padding: 5px 9px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+  box-shadow: 0 4px 14px rgba(0,0,0,.4);
+}
+.chart-cursor {
+  display: none;
+  position: absolute;
+  width: 1px;
+  background: rgba(143, 163, 200, 0.45);
+  pointer-events: none;
+}
+
 /* ============ Icons (SVG sprite) ============ */
 .icon {
   width: 17px;
@@ -337,8 +439,10 @@ body {
 .toast {
   position: absolute;
   bottom: 34px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: fit-content;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -462,6 +566,8 @@ body {
   .sidebar-foot { display: none; }     /* chú giải ẩn trên mobile cho thoáng */
   #attribution { display: none; }
 
+  .vn-alert { top: 10px; font-size: 12px; padding: 7px 10px 7px 12px; }
+
   /* --- Panel thành bottom-sheet --- */
   .panel, #layers-panel {
     top: auto;
@@ -473,7 +579,8 @@ body {
   }
   @keyframes slideUp { from { opacity: 0; transform: translateY(16px);} to { opacity: 1; transform: none;} }
 
-  .toast { bottom: auto; top: 12px; }
+  /* Toast nằm trên dải thẻ bão, không đè banner cảnh báo */
+  .toast { bottom: calc(158px + env(safe-area-inset-bottom)); }
 }
 
 /* Màn hình rất nhỏ */

@@ -1,0 +1,20 @@
+{
+  "name": "StormWatch Global — Theo dõi bão toàn cầu",
+  "short_name": "StormWatch",
+  "description": "Theo dõi bão nhiệt đới toàn cầu thời gian thực trên quả địa cầu 3D kiểu NASA",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#05080f",
+  "theme_color": "#070c1a",
+  "lang": "vi",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

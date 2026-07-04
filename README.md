@@ -14,9 +14,15 @@ Trang web theo dõi bão nhiệt đới trên toàn thế giới với **quả �
 - 🔄 **Tự động làm mới mỗi 5 phút** (có đồng hồ đếm ngược + nút làm mới ngay)
 - 🎨 Phân cấp bão theo thang **Saffir–Simpson** với màu chuẩn quốc tế
 - 📈 **Đường đi của bão** (quá khứ + dự báo), nón dự báo và vùng cảnh báo ảnh hưởng
-- 📋 Panel chi tiết từng cơn bão: sức gió, áp suất, mức cảnh báo, khu vực ảnh hưởng, link báo cáo đầy đủ
-- 🌐 Địa cầu tự xoay, biểu tượng bão xoáy động theo cường độ
-- 📱 Giao diện tối kiểu NASA, hỗ trợ màn hình nhỏ
+- 📋 Panel chi tiết từng cơn bão: sức gió, áp suất, mức cảnh báo, khu vực ảnh hưởng, **biểu đồ diễn biến sức gió** (có tooltip), link báo cáo đầy đủ
+- ☁️ Lớp phủ **mây vệ tinh hồng ngoại** (Himawari + GOES) và **mưa GPM IMERG**
+- 🌓 Chế độ **ánh sáng ngày / đêm thực** trên quả địa cầu
+- 🎬 Nút **Tour** bay lần lượt qua tất cả các cơn bão đang hoạt động
+- 🇻🇳 **Cảnh báo bão gần Việt Nam**: banner tự hiện khi có bão cách bờ biển dưới ~1200 km
+- 💾 Tự nhớ cài đặt (lớp nền, lớp phủ, chế độ xem…) cho lần mở sau
+- 📲 Hỗ trợ **PWA** — có thể "Thêm vào màn hình chính" trên điện thoại
+- 🌐 Địa cầu tự xoay, biểu tượng bão xoáy động theo cường độ, màn hình khởi động mượt
+- 📱 Giao diện tối kiểu NASA, tối ưu cho điện thoại (bản đồ full màn hình, thẻ bão trượt ngang)
 
 ## 🚀 Cách chạy
 

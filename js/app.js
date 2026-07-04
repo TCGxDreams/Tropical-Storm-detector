@@ -9,7 +9,32 @@
 
   const REFRESH_MS = 5 * 60 * 1000; // 5 phút
 
+  /* ---- Màn hình khởi động ---- */
+  let splashHidden = false;
+  function hideSplash() {
+    if (splashHidden) return;
+    splashHidden = true;
+    const el = document.getElementById("splash");
+    el.classList.add("fade-out");
+    setTimeout(() => el.remove(), 600);
+  }
+  setTimeout(hideSplash, 12000); // failsafe
+
+  /* ---- Cài đặt lưu trong máy ---- */
+  const SETTINGS_KEY = "stormwatch-settings";
+  function loadSettings() {
+    try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }
+    catch { return {}; }
+  }
+  function saveSettings(patch) {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...loadSettings(), ...patch }));
+    } catch { /* chế độ riêng tư */ }
+  }
+  const settings = loadSettings();
+
   if (typeof Cesium === "undefined") {
+    hideSplash();
     document.getElementById("cesiumContainer").innerHTML =
       `<div style="display:flex;height:100%;align-items:center;justify-content:center;
                    text-align:center;color:#8fa3c8;font-size:15px;line-height:1.8;padding:24px">
@@ -47,9 +72,16 @@
     osm:         () => new Cesium.OpenStreetMapImageryProvider({ url: "https://tile.openstreetmap.org/" }),
   };
 
+  // Mỗi lớp phủ có thể gồm nhiều nguồn ảnh (vd: 3 vệ tinh địa tĩnh phủ toàn cầu)
   const OVERLAYS = {
-    ref:    () => gibsProvider("Reference_Features_15m", 9, "png"),
-    labels: () => gibsProvider("Reference_Labels_15m", 9, "png"),
+    ref:    { alpha: 1,    providers: () => [gibsProvider("Reference_Features_15m", 9, "png")] },
+    labels: { alpha: 1,    providers: () => [gibsProvider("Reference_Labels_15m", 9, "png")] },
+    clouds: { alpha: 0.55, providers: () => [
+      gibsProvider("Himawari_AHI_Band13_Clean_Infrared", 7, "png"),
+      gibsProvider("GOES-East_ABI_Band13_Clean_Infrared", 7, "png"),
+      gibsProvider("GOES-West_ABI_Band13_Clean_Infrared", 7, "png"),
+    ] },
+    rain:   { alpha: 0.85, providers: () => [gibsProvider("IMERG_Precipitation_Rate", 6, "png")] },
   };
 
   /* ================= 2. Khởi tạo Cesium ================= */
@@ -82,26 +114,56 @@
     destination: Cesium.Cartesian3.fromDegrees(114, 15, 22000000),
   });
 
-  const layerState = { base: null, ref: null, labels: null };
+  const layerState = { base: null, ref: null, labels: null, clouds: null, rain: null };
 
   function setBaseLayer(key) {
     if (layerState.base) viewer.imageryLayers.remove(layerState.base, true);
     layerState.base = viewer.imageryLayers.addImageryProvider(BASE_LAYERS[key]());
     viewer.imageryLayers.lowerToBottom(layerState.base);
     layerState.base.brightness = Number(document.getElementById("brightness").value);
+    saveSettings({ base: key });
   }
 
   function setOverlay(key, on) {
     if (on && !layerState[key]) {
-      layerState[key] = viewer.imageryLayers.addImageryProvider(OVERLAYS[key]());
+      const def = OVERLAYS[key];
+      layerState[key] = def.providers().map((p) => {
+        const layer = viewer.imageryLayers.addImageryProvider(p);
+        layer.alpha = def.alpha;
+        return layer;
+      });
+      // Đường biên giới & địa danh luôn nằm trên cùng
+      for (const k of ["ref", "labels"])
+        (layerState[k] || []).forEach((l) => viewer.imageryLayers.raiseToTop(l));
     } else if (!on && layerState[key]) {
-      viewer.imageryLayers.remove(layerState[key], true);
+      layerState[key].forEach((l) => viewer.imageryLayers.remove(l, true));
       layerState[key] = null;
     }
+    saveSettings({ [`ovl_${key}`]: on });
   }
 
-  setBaseLayer("trueColor");
-  setOverlay("ref", true);
+  function setLighting(on) {
+    scene.globe.enableLighting = on;
+    saveSettings({ lighting: on });
+  }
+
+  // Khôi phục cài đặt đã lưu từ lần dùng trước
+  const initBase = BASE_LAYERS[settings.base] ? settings.base : "trueColor";
+  const baseRadio = document.querySelector(`input[name="baselayer"][value="${initBase}"]`);
+  if (baseRadio) baseRadio.checked = true;
+  if (settings.brightness) document.getElementById("brightness").value = settings.brightness;
+  setBaseLayer(initBase);
+  for (const key of Object.keys(OVERLAYS)) {
+    const on = settings[`ovl_${key}`] ?? (key === "ref");
+    document.getElementById(`ovl-${key}`).checked = on;
+    setOverlay(key, on);
+  }
+  if (settings.lighting) {
+    document.getElementById("chk-lighting").checked = true;
+    setLighting(true);
+  }
+  if (settings.ovl_cones === false) document.getElementById("ovl-cones").checked = false;
+  if (settings.ovl_tracks === false) document.getElementById("ovl-tracks").checked = false;
 
   /* ================= 3. Biểu tượng bão (vẽ canvas) ================= */
 
@@ -387,9 +449,29 @@
         <div><b>Cập nhật:</b> ${fmtDate(s.updated)}</div>
         <div><b>Nguồn:</b> ${s.source}</div>
       </div>
+      ${windChartHtml(s)}
       <a class="detail-link" href="${s.reportUrl}" target="_blank" rel="noopener">
         Xem báo cáo đầy đủ <svg class="icon"><use href="#i-external"/></svg></a>`;
     document.getElementById("detail-panel").classList.remove("hidden");
+    renderWindChart(s);
+  }
+
+  function chartPoints(s) {
+    return (s.track?.points || []).filter((p) => p.windKmh > 0);
+  }
+
+  function windChartHtml(s) {
+    if (chartPoints(s).length < 2) return "";
+    return `<div class="wind-chart-sec">
+      <div class="k">Diễn biến sức gió (km/h)</div>
+      <div class="wind-chart-wrap"><canvas id="wind-chart"></canvas></div>
+    </div>`;
+  }
+
+  function renderWindChart(s) {
+    const canvas = document.getElementById("wind-chart");
+    if (!canvas) return;
+    requestAnimationFrame(() => StormChart.draw(canvas, chartPoints(s)));
   }
 
   async function loadTrackFor(s) {
@@ -397,6 +479,11 @@
     try {
       s.track = await StormData.fetchTrack(s);
       redrawAll();
+      // Nếu đang mở panel của cơn bão này -> vẽ thêm biểu đồ sức gió
+      if (s.id === selectedId &&
+          !document.getElementById("detail-panel").classList.contains("hidden")) {
+        showDetail(s);
+      }
     } catch (e) {
       console.warn("Không tải được đường đi của", s.name, e);
     }
@@ -409,6 +496,53 @@
     const stormId = picked?.id?.properties?.stormId?.getValue?.();
     if (stormId) selectStorm(stormId, false);
   }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+  /* ================= 5b. Cảnh báo bão gần Việt Nam ================= */
+
+  // Các điểm mốc dọc bờ biển Việt Nam (lat, lon)
+  const VN_COAST = [
+    [21.5, 108.0], [20.0, 106.5], [18.7, 105.8], [17.5, 106.6],
+    [16.05, 108.2], [13.8, 109.3], [12.2, 109.2], [10.3, 107.1], [8.6, 104.7],
+  ];
+
+  function distKm(lat1, lon1, lat2, lon2) {
+    const r = Math.PI / 180, R = 6371;
+    const a = Math.sin(((lat2 - lat1) * r) / 2) ** 2 +
+      Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin(((lon2 - lon1) * r) / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  let vnAlertDismissed = "";
+  let vnAlertStormId = null;
+
+  function updateVnAlert() {
+    const el = document.getElementById("vn-alert");
+    const near = storms
+      .map((s) => ({ s, d: Math.round(Math.min(...VN_COAST.map(([la, lo]) => distKm(s.lat, s.lon, la, lo)))) }))
+      .filter((x) => x.d < 1200 || /viet\s*nam/i.test(x.s.countries))
+      .sort((a, b) => a.d - b.d);
+
+    const key = near.map((x) => x.s.id).join(",");
+    if (!near.length || key === vnAlertDismissed) {
+      el.classList.add("hidden");
+      return;
+    }
+    const { s, d } = near[0];
+    vnAlertStormId = s.id;
+    el.dataset.key = key;
+    document.getElementById("vn-alert-text").textContent =
+      `${s.category.label} ${s.name} cách bờ biển Việt Nam ~${d} km`;
+    el.classList.remove("hidden");
+  }
+
+  document.getElementById("vn-alert-goto").addEventListener("click", () => {
+    if (vnAlertStormId) selectStorm(vnAlertStormId, true);
+  });
+  document.getElementById("vn-alert-close").addEventListener("click", () => {
+    const el = document.getElementById("vn-alert");
+    vnAlertDismissed = el.dataset.key || "";
+    el.classList.add("hidden");
+  });
 
   /* ================= 6. Tải & làm mới dữ liệu ================= */
 
@@ -451,6 +585,7 @@
 
       renderList();
       redrawAll();
+      updateVnAlert();
       // Tải trước đường đi của vài cơn bão mạnh nhất
       storms.slice(0, 5).forEach(loadTrackFor);
 
@@ -463,6 +598,7 @@
       refreshing = false;
       nextRefreshAt = Date.now() + REFRESH_MS;
       document.getElementById("btn-refresh").classList.remove("spinning");
+      hideSplash();
     }
   }
 
@@ -476,7 +612,8 @@
 
   /* ================= 7. Tự động xoay địa cầu ================= */
 
-  let autoRotate = true;
+  let autoRotate = settings.autoRotate ?? true;
+  document.getElementById("btn-rotate").classList.toggle("active", autoRotate);
   let rotatePausedUntil = 0;
 
   function pauseAutoRotate(ms = 12000) { rotatePausedUntil = Date.now() + ms; }
@@ -490,23 +627,67 @@
     }
   });
 
+  /* ================= 7b. Tour bay qua các cơn bão ================= */
+
+  let tourActive = false;
+  let tourTimer = null;
+
+  function stopTour() {
+    tourActive = false;
+    clearTimeout(tourTimer);
+    document.getElementById("btn-tour").classList.remove("active");
+  }
+
+  function startTour() {
+    if (!storms.length) {
+      toast("Chưa có dữ liệu bão để tham quan.");
+      return;
+    }
+    tourActive = true;
+    document.getElementById("btn-tour").classList.add("active");
+    let i = 0;
+    const next = () => {
+      if (!tourActive) return;
+      if (i >= storms.length) { stopTour(); return; }
+      const s = storms[i++];
+      selectedId = s.id;
+      renderList();
+      pauseAutoRotate(8000);
+      viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 2000000),
+        duration: 2.4,
+        complete: () => { tourTimer = setTimeout(next, 2800); },
+        cancel: stopTour, // người dùng chạm vào bản đồ -> dừng tour
+      });
+    };
+    next();
+  }
+
+  document.getElementById("btn-tour").addEventListener("click", () => {
+    tourActive ? stopTour() : startTour();
+  });
+
   /* ================= 8. Điều khiển UI ================= */
 
   // 3D / 2.5D / 2D
+  function setViewMode(mode, animate = true) {
+    document.querySelectorAll("#view-mode button").forEach((b) =>
+      b.classList.toggle("active", b.dataset.mode === mode));
+    const dur = animate ? 1.2 : 0;
+    if (mode === "3d") scene.morphTo3D(dur);
+    else if (mode === "2.5d") scene.morphToColumbusView(dur);
+    else scene.morphTo2D(dur);
+    saveSettings({ mode });
+  }
   document.querySelectorAll("#view-mode button").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll("#view-mode button").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      const mode = btn.dataset.mode;
-      if (mode === "3d") scene.morphTo3D(1.2);
-      else if (mode === "2.5d") scene.morphToColumbusView(1.2);
-      else scene.morphTo2D(1.2);
-    });
+    btn.addEventListener("click", () => setViewMode(btn.dataset.mode));
   });
+  if (settings.mode && settings.mode !== "3d") setViewMode(settings.mode, false);
 
   document.getElementById("btn-rotate").addEventListener("click", (e) => {
     autoRotate = !autoRotate;
     e.currentTarget.classList.toggle("active", autoRotate);
+    saveSettings({ autoRotate });
   });
 
   document.getElementById("btn-layers").addEventListener("click", () => {
@@ -520,12 +701,21 @@
   document.querySelectorAll('input[name="baselayer"]').forEach((r) => {
     r.addEventListener("change", () => setBaseLayer(r.value));
   });
-  document.getElementById("ovl-ref").addEventListener("change", (e) => setOverlay("ref", e.target.checked));
-  document.getElementById("ovl-labels").addEventListener("change", (e) => setOverlay("labels", e.target.checked));
-  document.getElementById("ovl-cones").addEventListener("change", redrawAll);
-  document.getElementById("ovl-tracks").addEventListener("change", redrawAll);
+  for (const key of Object.keys(OVERLAYS)) {
+    document.getElementById(`ovl-${key}`).addEventListener("change", (e) => setOverlay(key, e.target.checked));
+  }
+  document.getElementById("ovl-cones").addEventListener("change", (e) => {
+    saveSettings({ ovl_cones: e.target.checked });
+    redrawAll();
+  });
+  document.getElementById("ovl-tracks").addEventListener("change", (e) => {
+    saveSettings({ ovl_tracks: e.target.checked });
+    redrawAll();
+  });
+  document.getElementById("chk-lighting").addEventListener("change", (e) => setLighting(e.target.checked));
   document.getElementById("brightness").addEventListener("input", (e) => {
     if (layerState.base) layerState.base.brightness = Number(e.target.value);
+    saveSettings({ brightness: Number(e.target.value) });
   });
 
   document.getElementById("btn-refresh").addEventListener("click", refresh);
