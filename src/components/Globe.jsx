@@ -107,6 +107,7 @@ export default function Globe({
     });
 
     viewerRef.current = viewer;
+    viewer.resolutionScale = 1.0;
     const scene = viewer.scene;
     scene.globe.enableLighting = false;
     scene.globe.baseColor = Cesium.Color.fromCssColorString("#0a1633");
@@ -269,7 +270,6 @@ export default function Globe({
           height: 46,
           rotation: spinProperty(storm.windKmh >= 119 ? 1.6 : 0.9),
           verticalOrigin: Cesium.VerticalOrigin.CENTER,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
           scaleByDistance: new Cesium.NearFarScalar(2e5, 1.4, 2.5e7, 0.55),
         },
@@ -285,7 +285,6 @@ export default function Globe({
           pixelOffset: new Cesium.Cartesian2(0, -28),
           pixelOffsetScaleByDistance: new Cesium.NearFarScalar(2e5, 1.2, 2.5e7, 0.55),
           scaleByDistance: new Cesium.NearFarScalar(2e5, 1.0, 2.5e7, 0.75),
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
           showBackground: true,
           backgroundColor: Cesium.Color.fromCssColorString("#05080f").withAlpha(0.55),
@@ -324,7 +323,6 @@ export default function Globe({
                     color: Cesium.Color.WHITE.withAlpha(0.85),
                     dashLength: 12,
                   }),
-                  clampToGround: true,
                 },
               });
             }
@@ -340,7 +338,6 @@ export default function Globe({
                 color: Cesium.Color.fromCssColorString(c),
                 outlineColor: Cesium.Color.BLACK.withAlpha(0.6),
                 outlineWidth: 1.5,
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
                 scaleByDistance: new Cesium.NearFarScalar(2e5, 1.2, 2.5e7, 0.4),
               },
@@ -401,7 +398,6 @@ export default function Globe({
           color: Cesium.Color.fromCssColorString("#3d8bff"),
           outlineColor: Cesium.Color.WHITE,
           outlineWidth: 2.5,
-          heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
         },
         label: {
@@ -477,7 +473,6 @@ export default function Globe({
         image: hurricaneIcon("#ffffff"),
         width: 36,
         height: 36,
-        heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
       },
       label: {
