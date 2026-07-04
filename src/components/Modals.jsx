@@ -88,7 +88,7 @@ export function CompareModal({ isOpen, onClose, storms, myLoc, onSelectStorm }) 
     short: s.category.short,
     windKmh: s.windKmh,
     pressure: s.pressure,
-    vnDist: distToVN(s.lat, s.lon),
+    vnDist: distToVN(s.lat, s.lon).km,
     userDist: myLoc ? Math.round(distKm(s.lat, s.lon, myLoc.lat, myLoc.lon)) : null,
   }));
 

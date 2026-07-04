@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { distKm } from "../services/alerts";
+import { distKm, distToVN } from "../services/alerts";
 import { drawWindChart, drawPressureChart } from "../utils/chart";
 
 export default function DetailPanel({
@@ -44,6 +44,7 @@ export default function DetailPanel({
   if (!isOpen || !storm) return null;
 
   const distance = myLoc ? Math.round(distKm(storm.lat, storm.lon, myLoc.lat, myLoc.lon)) : null;
+  const vn = distToVN(storm.lat, storm.lon);
 
   return (
     <div id="detail-panel" className="panel">
@@ -117,6 +118,7 @@ export default function DetailPanel({
           {storm.population && <div><b>Mức độ:</b> {storm.population}</div>}
           <div><b>Cập nhật:</b> {formatDateTime(storm.updated)}</div>
           <div><b>Nguồn:</b> {storm.source}</div>
+          <div><b>Cách đất liền VN:</b> {vn.km} km (gần {vn.place})</div>
           {distance !== null && <div><b>Cách vị trí của bạn:</b> {distance} km</div>}
         </div>
 

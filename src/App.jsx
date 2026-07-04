@@ -652,7 +652,7 @@ export default function App() {
             <div id="vn-alert" className="vn-alert">
               <svg className="icon"><use href="#i-alert"/></svg>
               <span>
-                {vnAlertStorm.s.category.label} {vnAlertStorm.s.name} cách bờ biển Việt Nam ~{vnAlertStorm.d} km
+                {vnAlertStorm.s.category.label} {vnAlertStorm.s.name} cách bờ biển {vnAlertStorm.place} ~{vnAlertStorm.d} km
               </span>
               <button 
                 id="vn-alert-goto" 
