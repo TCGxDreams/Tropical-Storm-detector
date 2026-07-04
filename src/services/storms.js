@@ -4,8 +4,8 @@
 
 const GDACS_LIST_URL = "https://www.gdacs.org/gdacsapi/api/events/geteventlist/MAP?eventtypes=TC";
 const NHC_URL = "https://www.nhc.noaa.gov/CurrentStorms.json";
-const IBTRACS_ACTIVE_URL =
-  "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/provisional/json/ibtracs.active.json";
+const IBTRACS_ACTIVE_CSV_URL =
+  "https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/access/csv/ibtracs.ACTIVE.list.v04r01.csv";
 
 // Proxy CORS dự phòng khi nguồn gốc không cho phép cross-origin
 const CORS_PROXIES = [
@@ -36,6 +36,24 @@ async function fetchJSON(url, timeoutMs = 15000) {
       clearTimeout(t);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error("fetch failed");
+}
+
+async function fetchText(url, timeoutMs = 15000) {
+  const attempts = [url, ...CORS_PROXIES.map((p) => p(url))];
+  let lastErr;
+  for (const target of attempts) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      const res = await fetch(target, { signal: ctrl.signal });
+      clearTimeout(t);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.text();
     } catch (e) {
       lastErr = e;
     }
@@ -165,9 +183,115 @@ function parseIbtracksTrack(entry) {
       isForecast: false,
     });
   }
-  if (points.length < 2) return null;
-  const coords = points.map((p) => [p.lon, p.lat]);
   return { points, lines: [coords], cones: [], impacts: [] };
+}
+
+/* ---------- Parse NOAA IBTrACS ACTIVE CSV ---------- */
+function parseActiveCsv(csvText) {
+  const lines = csvText.split(/\r?\n/);
+  if (lines.length < 3) return [];
+
+  const headers = lines[0].split(",");
+  const getIdx = (col) => headers.indexOf(col);
+
+  const sidIdx = getIdx("SID");
+  const nameIdx = getIdx("NAME");
+  const timeIdx = getIdx("ISO_TIME");
+  const latIdx = getIdx("LAT");
+  const lonIdx = getIdx("LON");
+  const windIdx = getIdx("USA_WIND");
+  const presIdx = getIdx("USA_PRES");
+  const basinIdx = getIdx("BASIN");
+
+  if (sidIdx === -1 || nameIdx === -1 || timeIdx === -1 || latIdx === -1 || lonIdx === -1) {
+    throw new Error("Missing required columns in IBTrACS CSV");
+  }
+
+  const stormsMap = new Map();
+
+  for (let i = 2; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const parts = line.split(",");
+    const maxIdx = Math.max(sidIdx, nameIdx, timeIdx, latIdx, lonIdx, windIdx, presIdx, basinIdx);
+    if (parts.length <= maxIdx) continue;
+
+    const sid = parts[sidIdx].trim();
+    let name = parts[nameIdx].trim().toUpperCase();
+    const timeStr = parts[timeIdx].trim();
+    const latStr = parts[latIdx].trim();
+    const lonStr = parts[lonIdx].trim();
+    const windStr = parts[windIdx].trim();
+    const presStr = parts[presIdx].trim();
+    const basin = parts[basinIdx].trim();
+
+    if (!sid) continue;
+    if (name === "NOTNAMED" || name === "UNNAMED" || !name) {
+      name = `TC-${sid}`;
+    }
+
+    const lat = parseFloat(latStr);
+    const lon = parseFloat(lonStr);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+    const windKt = parseFloat(windStr) || 0;
+    const pressure = parseFloat(presStr) || null;
+    const windKmh = Math.round(windKt * 1.852);
+
+    const point = {
+      lat,
+      lon,
+      date: timeStr,
+      windKmh,
+      isForecast: false,
+    };
+
+    if (!stormsMap.has(sid)) {
+      stormsMap.set(sid, {
+        id: `ibtracs-${sid}`,
+        source: "IBTrACS/JTWC",
+        name,
+        basin,
+        points: [],
+      });
+    }
+    stormsMap.get(sid).points.push(point);
+  }
+
+  const results = [];
+  for (const [sid, info] of stormsMap.entries()) {
+    info.points.sort((a, b) => new Date(a.date) - new Date(b.date));
+    const latest = info.points[info.points.length - 1];
+
+    const coords = info.points.map((p) => [p.lon, p.lat]);
+    const track = {
+      points: info.points,
+      lines: [coords],
+      cones: [],
+      impacts: [],
+    };
+
+    results.push({
+      id: info.id,
+      source: info.source,
+      name: info.name,
+      lat: latest.lat,
+      lon: latest.lon,
+      windKmh: latest.windKmh,
+      windKt: latest.windKmh ? Math.round(latest.windKmh / 1.852) : null,
+      pressure: latest.pressure || null,
+      movement: null,
+      alertLevel: latest.windKmh >= 178 ? "Red" : latest.windKmh >= 119 ? "Orange" : "Green",
+      countries: escapeHtml(info.basin),
+      updated: latest.date,
+      reportUrl: "https://www.ncei.noaa.gov/products/international-best-track-archive",
+      geometryUrl: null,
+      category: categorize(latest.windKmh),
+      track,
+    });
+  }
+
+  return results;
 }
 
 /* ---------- Tải danh sách bão đang hoạt động ---------- */
@@ -193,19 +317,12 @@ export async function fetchActiveStorms() {
   }
 
   let ibtStorms = [];
-  // IBTrACS provisional active URL is currently offline (404), skip it to avoid console errors
-  /*
   try {
-    const ibt = await fetchJSON(IBTRACS_ACTIVE_URL, 12000);
-    if (Array.isArray(ibt)) {
-      ibtStorms = ibt.map(normalizeIbtracs);
-    } else if (ibt && typeof ibt === "object") {
-      ibtStorms = Object.values(ibt).map(normalizeIbtracs);
-    }
+    const csvText = await fetchText(IBTRACS_ACTIVE_CSV_URL, 15000);
+    ibtStorms = parseActiveCsv(csvText);
   } catch (e) {
-    console.warn("IBTrACS:", e.message);
+    console.warn("IBTrACS ACTIVE CSV:", e.message);
   }
-  */
 
   const byEvent = new Map();
   for (const s of gdacsStorms) {

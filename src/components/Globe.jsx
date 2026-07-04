@@ -167,16 +167,6 @@ export default function Globe({
     if (!viewerRef.current) return;
     const viewer = viewerRef.current;
 
-    const gibsDate = () => {
-      const d = new Date(Date.now() - 24 * 3600 * 1000);
-      return d.toISOString().slice(0, 10);
-    };
-
-    const gibsDateSST = () => {
-      // MUR SST has 1-2 days latency, subtract 2 days to guarantee tile availability
-      const d = new Date(Date.now() - 2 * 24 * 3600 * 1000);
-      return d.toISOString().slice(0, 10);
-    };
 
     const gibsProvider = (layer, matrixLevel, ext, time) => {
       const timePart = time ? `${time}/` : "";
@@ -189,22 +179,22 @@ export default function Globe({
     };
 
     const BASE_LAYERS = {
-      trueColor:   () => gibsProvider("VIIRS_SNPP_CorrectedReflectance_TrueColor", 9, "jpg", gibsDate()),
+      trueColor:   () => gibsProvider("VIIRS_SNPP_CorrectedReflectance_TrueColor", 9, "jpg"),
       blueMarble:  () => gibsProvider("BlueMarble_ShadedRelief_Bathymetry", 8, "jpeg"),
       nightLights: () => gibsProvider("VIIRS_Black_Marble", 8, "png", "2016-01-01"),
       osm:         () => new Cesium.OpenStreetMapImageryProvider({ url: "https://tile.openstreetmap.org/" }),
     };
 
     const OVERLAY_DEFS = {
-      ref:    { alpha: 1,    providers: () => [gibsProvider("Reference_Features_15m", 9, "png")] },
-      labels: { alpha: 1,    providers: () => [gibsProvider("Reference_Labels_15m", 9, "png")] },
+      ref:    { alpha: 1,    providers: () => [gibsProvider("Reference_Features_15m", 13, "png")] },
+      labels: { alpha: 1,    providers: () => [gibsProvider("Reference_Labels_15m", 13, "png")] },
       clouds: { alpha: 0.55, providers: () => [
-        gibsProvider("Himawari_AHI_Band13_Clean_Infrared", 7, "png"),
-        gibsProvider("GOES-East_ABI_Band13_Clean_Infrared", 7, "png"),
-        gibsProvider("GOES-West_ABI_Band13_Clean_Infrared", 7, "png"),
+        gibsProvider("Himawari_AHI_Band13_Clean_Infrared", 6, "png"),
+        gibsProvider("GOES-East_ABI_Band13_Clean_Infrared", 6, "png"),
+        gibsProvider("GOES-West_ABI_Band13_Clean_Infrared", 6, "png"),
       ] },
       rain:   { alpha: 0.85, providers: () => [gibsProvider("IMERG_Precipitation_Rate", 6, "png")] },
-      sst:    { alpha: 0.65, providers: () => [gibsProvider("GHRSST_MUR_SST", 6, "png", gibsDateSST())] },
+      sst:    { alpha: 0.65, providers: () => [gibsProvider("GHRSST_L4_MUR_Sea_Surface_Temperature", 7, "png")] },
     };
 
     // a. Update Base Layer
