@@ -420,10 +420,10 @@ export default function Globe({
     }
   }, [myLoc]);
 
-  // 5. Selected Storm camera flight
+  // 5. Selected Storm camera flight (ONLY trigger when selectedId changes)
   useEffect(() => {
     if (!viewerRef.current || !selectedId) return;
-    const s = storms.find((x) => x.id === selectedId);
+    const s = stormsRef.current.find((x) => x.id === selectedId);
     if (!s) return;
 
     rotatePausedUntilRef.current = Date.now() + 12000;
@@ -431,7 +431,7 @@ export default function Globe({
       destination: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 2200000),
       duration: 1.8,
     });
-  }, [selectedId, storms]);
+  }, [selectedId]);
 
   // 6. Playback logic
   useEffect(() => {
