@@ -172,6 +172,12 @@ export default function Globe({
       return d.toISOString().slice(0, 10);
     };
 
+    const gibsDateSST = () => {
+      // MUR SST has 1-2 days latency, subtract 2 days to guarantee tile availability
+      const d = new Date(Date.now() - 2 * 24 * 3600 * 1000);
+      return d.toISOString().slice(0, 10);
+    };
+
     const gibsProvider = (layer, matrixLevel, ext, time) => {
       const timePart = time ? `${time}/` : "";
       return new Cesium.UrlTemplateImageryProvider({
@@ -198,7 +204,7 @@ export default function Globe({
         gibsProvider("GOES-West_ABI_Band13_Clean_Infrared", 7, "png"),
       ] },
       rain:   { alpha: 0.85, providers: () => [gibsProvider("IMERG_Precipitation_Rate", 6, "png")] },
-      sst:    { alpha: 0.65, providers: () => [gibsProvider("GHRSST_MUR_SST", 6, "png", gibsDate())] },
+      sst:    { alpha: 0.65, providers: () => [gibsProvider("GHRSST_MUR_SST", 6, "png", gibsDateSST())] },
     };
 
     // a. Update Base Layer

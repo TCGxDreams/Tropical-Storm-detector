@@ -379,7 +379,11 @@ export default function App() {
                     name="baselayer"
                     value="trueColor"
                     checked={baseLayer === "trueColor"}
-                    onChange={(e) => setBaseLayer(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBaseLayer(val);
+                      saveSettings({ base: val });
+                    }}
                   />{" "}
                   Ảnh vệ tinh màu thật (hôm nay)
                 </label>
@@ -389,7 +393,11 @@ export default function App() {
                     name="baselayer"
                     value="blueMarble"
                     checked={baseLayer === "blueMarble"}
-                    onChange={(e) => setBaseLayer(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBaseLayer(val);
+                      saveSettings({ base: val });
+                    }}
                   />{" "}
                   Blue Marble (NASA)
                 </label>
@@ -399,7 +407,11 @@ export default function App() {
                     name="baselayer"
                     value="nightLights"
                     checked={baseLayer === "nightLights"}
-                    onChange={(e) => setBaseLayer(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBaseLayer(val);
+                      saveSettings({ base: val });
+                    }}
                   />{" "}
                   Đèn đêm (Black Marble)
                 </label>
@@ -409,7 +421,11 @@ export default function App() {
                     name="baselayer"
                     value="osm"
                     checked={baseLayer === "osm"}
-                    onChange={(e) => setBaseLayer(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setBaseLayer(val);
+                      saveSettings({ base: val });
+                    }}
                   />{" "}
                   Bản đồ đường (OSM)
                 </label>
