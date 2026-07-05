@@ -49,6 +49,7 @@ export default function App() {
   const [compareOpen, setCompareOpen] = useState(false);
   const [weatherOpen, setWeatherOpen] = useState(false);
   const [weatherData, setWeatherData] = useState(null);
+  const [selectedPin, setSelectedPin] = useState(null);
 
   const [vnAlertDismissed, setVnAlertDismissed] = useState("");
   const refreshTimerRef = useRef(null);
@@ -203,12 +204,21 @@ export default function App() {
     }
   }, [showToast]);
 
-  // Load weather when myLoc changes
+  // Load weather when myLoc or selectedPin changes
   useEffect(() => {
-    if (myLoc) {
+    if (selectedPin) {
+      loadWeather(selectedPin.lat, selectedPin.lon);
+    } else if (myLoc) {
       loadWeather(myLoc.lat, myLoc.lon);
     }
-  }, [myLoc, loadWeather]);
+  }, [myLoc, selectedPin, loadWeather]);
+
+  // Deselect pin when selecting a storm
+  useEffect(() => {
+    if (selectedId) {
+      setSelectedPin(null);
+    }
+  }, [selectedId]);
 
   /* ================= Export CSV ================= */
   const handleExportCSV = useCallback(() => {
@@ -360,7 +370,14 @@ export default function App() {
             playbackStorm={playbackStorm}
             onStopPlayback={() => setPlaybackStorm(null)}
             viewMode={viewMode}
+            selectedPin={selectedPin}
+            onSelectCoordinates={(coords) => {
+              setSelectedPin(coords);
+              setSelectedId(null);
+            }}
           />
+
+          <div id="coords-hud" className="coords-hud"></div>
 
           {/* Lớp bản đồ panel */}
           <div id="layers-panel" className={`panel ${layersOpen ? "" : "hidden"}`}>
@@ -580,7 +597,11 @@ export default function App() {
           <WeatherWidget
             data={weatherData}
             isOpen={weatherOpen}
-            onClose={() => setWeatherOpen(false)}
+            onClose={() => {
+              setWeatherOpen(false);
+              setSelectedPin(null);
+            }}
+            title={selectedPin ? `Tọa độ: ${selectedPin.lat.toFixed(2)}°N, ${selectedPin.lon.toFixed(2)}°E` : "Vị trí của bạn"}
           />
 
           {/* Nút nổi Fabs */}

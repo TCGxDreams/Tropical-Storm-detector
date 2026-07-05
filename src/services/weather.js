@@ -46,8 +46,11 @@ export async function fetchWeather(lat, lon) {
       "weather_code", "wind_speed_10m", "wind_direction_10m",
       "pressure_msl", "precipitation", "cloud_cover", "uv_index",
     ].join(","),
+    hourly: [
+      "temperature_2m", "weather_code", "wind_speed_10m", "wind_direction_10m", "precipitation"
+    ].join(","),
     timezone: "auto",
-    forecast_days: 1,
+    forecast_days: 2,
   });
   const res = await fetch(`${API}?${params}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

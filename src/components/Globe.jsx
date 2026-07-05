@@ -48,6 +48,43 @@ function hurricaneIcon(color, size = 64) {
   return url;
 }
 
+const pinCache = new Map();
+
+function pinIcon(color, size = 64) {
+  const key = `${color}-${size}`;
+  if (pinCache.has(key)) return pinCache.get(key);
+
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const ctx = c.getContext("2d");
+  const cx = size / 2, cy = size * 0.35, r = size * 0.22;
+
+  ctx.translate(cx, cy);
+  ctx.fillStyle = color;
+  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowBlur = size * 0.12;
+  ctx.shadowOffsetY = size * 0.06;
+
+  ctx.beginPath();
+  ctx.arc(0, 0, r, Math.PI, 0);
+  ctx.bezierCurveTo(r, r, 0, r * 1.8, 0, size * 0.55 - cy);
+  ctx.bezierCurveTo(0, r * 1.8, -r, r, -r, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
+  ctx.fill();
+
+  const url = c.toDataURL();
+  pinCache.set(key, url);
+  return url;
+}
+
 export default function Globe({
   storms,
   selectedId,
@@ -63,6 +100,8 @@ export default function Globe({
   playbackStorm,
   onStopPlayback,
   viewMode,
+  selectedPin,
+  onSelectCoordinates,
 }) {
   const containerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -78,6 +117,8 @@ export default function Globe({
   const onSelectStormRef = useRef(onSelectStorm);
   const hasFlownToLocRef = useRef(myLoc ? true : false);
   const lastFlownIdRef = useRef(null);
+  const pinSourceRef = useRef(null);
+  const onSelectCoordinatesRef = useRef(onSelectCoordinates);
 
   // Sync refs to avoid dependency re-renders in some callbacks
   useEffect(() => {
@@ -85,7 +126,8 @@ export default function Globe({
     stormsRef.current = storms;
     autoRotateRef.current = autoRotate;
     onSelectStormRef.current = onSelectStorm;
-  }, [selectedId, storms, autoRotate, onSelectStorm]);
+    onSelectCoordinatesRef.current = onSelectCoordinates;
+  }, [selectedId, storms, autoRotate, onSelectStorm, onSelectCoordinates]);
 
   // 1. Initialize Cesium Viewer
   useEffect(() => {
@@ -129,15 +171,44 @@ export default function Globe({
     viewer.dataSources.add(locSource);
     locSourceRef.current = locSource;
 
+    const pinSource = new Cesium.CustomDataSource("pin");
+    viewer.dataSources.add(pinSource);
+    pinSourceRef.current = pinSource;
+
     // Handle Left Click
     const handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
     handler.setInputAction((movement) => {
       const picked = scene.pick(movement.position);
       const stormId = picked?.id?.properties?.stormId?.getValue?.();
-      if (stormId && onSelectStormRef.current) {
-        onSelectStormRef.current(stormId);
+      if (stormId) {
+        if (onSelectStormRef.current) {
+          onSelectStormRef.current(stormId);
+        }
+      } else {
+        const cartesian = viewer.camera.pickEllipsoid(movement.position, scene.globe.ellipsoid);
+        if (cartesian && onSelectCoordinatesRef.current) {
+          const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+          const lon = Cesium.Math.toDegrees(cartographic.longitude);
+          const lat = Cesium.Math.toDegrees(cartographic.latitude);
+          onSelectCoordinatesRef.current({ lat, lon });
+        }
       }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    // Handle Mouse Move (Windy-style coordinates HUD)
+    const hudEl = document.getElementById("coords-hud");
+    handler.setInputAction((movement) => {
+      const cartesian = viewer.camera.pickEllipsoid(movement.endPosition, scene.globe.ellipsoid);
+      if (cartesian && hudEl) {
+        const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+        const lon = Cesium.Math.toDegrees(cartographic.longitude);
+        const lat = Cesium.Math.toDegrees(cartographic.latitude);
+        hudEl.style.display = "block";
+        hudEl.textContent = `${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`;
+      } else if (hudEl) {
+        hudEl.style.display = "none";
+      }
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
     // Auto Rotation ticker
     const onTick = () => {
@@ -444,6 +515,32 @@ export default function Globe({
       duration: 1.8,
     });
   }, [selectedId, storms]);
+
+  // 5b. Selected custom pin marker drawing
+  useEffect(() => {
+    if (!viewerRef.current || !pinSourceRef.current) return;
+    const pinSource = pinSourceRef.current;
+    pinSource.entities.removeAll();
+
+    if (selectedPin) {
+      pinSource.entities.add({
+        position: Cesium.Cartesian3.fromDegrees(selectedPin.lon, selectedPin.lat),
+        billboard: {
+          image: pinIcon("#ff3d3d", 48),
+          width: 24,
+          height: 24,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+          pixelOffset: new Cesium.Cartesian2(0, 2.4),
+          disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        },
+      });
+
+      viewerRef.current.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(selectedPin.lon, selectedPin.lat, 2500000),
+        duration: 1.8,
+      });
+    }
+  }, [selectedPin]);
 
   // 6. Playback logic
   useEffect(() => {
