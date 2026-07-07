@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as Cesium from "cesium";
 import { categorize } from "../services/storms";
+import { predictStormForecast } from "../services/alerts";
 
 // Keep a local cache for custom canvas icons
 const iconCache = new Map();
@@ -450,6 +451,127 @@ export default function Globe({
               }
             });
           });
+        }
+      }
+
+      // Draw Concentric Wind Radii Rings around active selected storm
+      if (storm.id === selectedId && overlays.ovl_cones) {
+        const center = Cesium.Cartesian3.fromDegrees(storm.lon, storm.lat);
+        
+        // 34 kt Ring (Yellow) - 63 km/h
+        const r34 = Math.min(450000, Math.max(100000, storm.windKmh * 1800));
+        stormSource.entities.add({
+          position: center,
+          properties: { stormId: storm.id },
+          ellipse: {
+            semiMajorAxis: r34,
+            semiMinorAxis: r34,
+            material: Cesium.Color.YELLOW.withAlpha(0.06),
+            outline: true,
+            outlineColor: Cesium.Color.YELLOW.withAlpha(0.35),
+            height: 0,
+          },
+        });
+        
+        // 50 kt Ring (Orange) - 92 km/h
+        const r50 = Math.min(280000, Math.max(60000, storm.windKmh * 1100));
+        stormSource.entities.add({
+          position: center,
+          properties: { stormId: storm.id },
+          ellipse: {
+            semiMajorAxis: r50,
+            semiMinorAxis: r50,
+            material: Cesium.Color.ORANGE.withAlpha(0.08),
+            outline: true,
+            outlineColor: Cesium.Color.ORANGE.withAlpha(0.45),
+            height: 0,
+          },
+        });
+
+        // 64 kt Ring (Red) - 118 km/h
+        if (storm.windKmh >= 118) {
+          const r64 = Math.min(160000, Math.max(30000, storm.windKmh * 650));
+          stormSource.entities.add({
+            position: center,
+            properties: { stormId: storm.id },
+            ellipse: {
+              semiMajorAxis: r64,
+              semiMinorAxis: r64,
+              material: Cesium.Color.RED.withAlpha(0.09),
+              outline: true,
+              outlineColor: Cesium.Color.RED.withAlpha(0.6),
+              height: 0,
+            },
+          });
+        }
+      }
+
+      // Draw AI forecast track & cones if the storm doesn't have official forecast points
+      const hasForecastPoints = t?.points?.some((p) => p.isForecast);
+      if (storm.id === selectedId && !hasForecastPoints && overlays.ovl_tracks) {
+        const aiForecast = predictStormForecast(storm);
+        if (aiForecast && aiForecast.forecasts) {
+          aiForecast.forecasts.forEach((f) => {
+            const center = Cesium.Cartesian3.fromDegrees(f.lon, f.lat);
+            
+            // Draw uncertainty circle at forecast hour
+            const rUncertainty = f.hour * 3000;
+            stormSource.entities.add({
+              position: center,
+              properties: { stormId: storm.id },
+              ellipse: {
+                semiMajorAxis: rUncertainty,
+                semiMinorAxis: rUncertainty,
+                material: Cesium.Color.WHITE.withAlpha(0.04),
+                outline: true,
+                outlineColor: Cesium.Color.WHITE.withAlpha(0.2),
+                height: 0,
+              },
+            });
+
+            // Draw forecast point marker
+            const catColor = categorize(f.windKmh).color;
+            stormSource.entities.add({
+              position: center,
+              properties: { stormId: storm.id },
+              point: {
+                pixelSize: 8,
+                color: Cesium.Color.fromCssColorString(catColor),
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 1.5,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              },
+              label: {
+                text: `+${f.hour}h (${f.windKmh} km/h)`,
+                font: "bold 10px sans-serif",
+                fillColor: Cesium.Color.WHITE,
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 2.0,
+                style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                pixelOffset: new Cesium.Cartesian2(0, -14),
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+              },
+            });
+          });
+
+          // Draw dashed polyline for forecast path
+          const forecastCoords = [
+            storm.lon, storm.lat,
+            ...aiForecast.forecasts.flatMap((f) => [f.lon, f.lat])
+          ];
+          if (forecastCoords.length >= 4) {
+            stormSource.entities.add({
+              properties: { stormId: storm.id },
+              polyline: {
+                positions: Cesium.Cartesian3.fromDegreesArray(forecastCoords),
+                width: 2.0,
+                material: new Cesium.PolylineDashMaterialProperty({
+                  color: Cesium.Color.RED.withAlpha(0.65),
+                  dashLength: 10,
+                }),
+              },
+            });
+          }
         }
       }
     });

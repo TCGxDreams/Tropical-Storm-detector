@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { distKm, distToVN } from "../services/alerts";
+import { distKm, distToVN, predictStormForecast } from "../services/alerts";
 import { drawWindChart, drawPressureChart } from "../utils/chart";
 
 export default function DetailPanel({
@@ -14,6 +14,8 @@ export default function DetailPanel({
 }) {
   const windCanvasRef = useRef(null);
   const pressureCanvasRef = useRef(null);
+
+  const aiForecast = storm ? predictStormForecast(storm) : null;
 
   const formatDateTime = (d) => {
     if (!d) return "—";
@@ -121,6 +123,73 @@ export default function DetailPanel({
           <div><b>Cách đất liền VN:</b> {vn.km} km (gần {vn.place})</div>
           {distance !== null && <div><b>Cách vị trí của bạn:</b> {distance} km</div>}
         </div>
+
+        {aiForecast && (
+          <div className="ai-analysis-box">
+            <div className="ai-title">
+              <svg className="icon ai-icon" viewBox="0 0 24 24" style={{ width: "16px", height: "16px", fill: "none", stroke: "var(--accent2)", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round", marginRight: "8px", verticalAlign: "middle" }}>
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+                <rect x="9" y="9" width="6" height="6" />
+                <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
+              </svg>
+              <span>Phân tích & Dự báo AI</span>
+              <span className="ai-beta-badge">BETA</span>
+            </div>
+            
+            <div className="ai-grid">
+              <div className="ai-item">
+                <span className="lbl">Hướng đi</span>
+                <span className="val">{aiForecast.bearingText} ({aiForecast.bearing}°)</span>
+              </div>
+              <div className="ai-item">
+                <span className="lbl">Tốc độ đi</span>
+                <span className="val">{aiForecast.speedKmh} km/h</span>
+              </div>
+              <div className="ai-item">
+                <span className="lbl">Nhiệt độ biển SST</span>
+                <span className="val" style={{ color: aiForecast.currentSST >= 28.5 ? "#ff9a3d" : "var(--text)" }}>
+                  {aiForecast.currentSST}°C
+                </span>
+              </div>
+            </div>
+
+            {aiForecast.landfall ? (
+              <div className="ai-landfall-alert danger">
+                <div className="alert-badge text-glow-red">CẢNH BÁO ĐỔ BỘ</div>
+                <div className="alert-content">
+                  Dự kiến đổ bộ đất liền <b>{aiForecast.landfall.region}</b> sau <b>{aiForecast.landfall.etaHours}h tới</b>. Sức gió đổ bộ đạt <b>{aiForecast.landfall.estimatedWindKmh} km/h</b>.
+                </div>
+              </div>
+            ) : (
+              <div className="ai-landfall-alert safe">
+                <div className="alert-badge safe">DỰ BÁO XU HƯỚNG</div>
+                <div className="alert-content">
+                  Không có khả năng đổ bộ trực tiếp vào đất liền Việt Nam trong 72 giờ tới.
+                </div>
+              </div>
+            )}
+
+            <div className="ai-table-title">DỰ BÁO CƯỜNG ĐỘ 72H TIẾP THEO</div>
+            <div className="ai-forecast-table">
+              <div className="ai-table-row header">
+                <div>Thời gian</div>
+                <div>Tọa độ</div>
+                <div>Sức gió</div>
+                <div>Môi trường</div>
+              </div>
+              {aiForecast.forecasts.map((f, idx) => (
+                <div className="ai-table-row" key={idx}>
+                  <div style={{ color: "var(--accent2)", fontWeight: 700 }}>+{f.hour}h</div>
+                  <div>{f.lat.toFixed(1)}°, {f.lon.toFixed(1)}°</div>
+                  <div style={{ color: "#ff5e5e", fontWeight: 700 }}>{f.windKmh} km/h</div>
+                  <div style={{ fontSize: "11px" }}>
+                    {f.isOverLand ? `${f.landRegion}` : `${f.estimatedSST.toFixed(1)}°C`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {hasTrackData && (
           <button 
