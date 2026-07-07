@@ -667,10 +667,38 @@ html, body, #root {
   .sidebar-foot { display: none; }     /* chú giải ẩn trên mobile cho thoáng */
   #attribution { display: none; }
 
-  .vn-alert { top: 10px; font-size: 12px; padding: 7px 10px 7px 12px; }
+  .vn-alert {
+    top: 10px;
+    font-size: 11px;
+    padding: 6px 8px 6px 12px;
+    gap: 6px;
+    border-radius: 12px;
+    max-width: 96%;
+  }
+  .vn-alert button {
+    padding: 4px;
+  }
+  .vn-alert button .icon {
+    width: 12px;
+    height: 12px;
+  }
 
-  /* Nút nổi tránh dải thẻ bão ở đáy */
-  #map-fabs { right: 10px; bottom: calc(168px + env(safe-area-inset-bottom)); gap: 8px; }
+  /* Nút nổi tránh dải thẻ bão ở đáy, hỗ trợ dịch chuyển mượt mà */
+  #map-fabs {
+    right: 10px;
+    bottom: calc(168px + env(safe-area-inset-bottom));
+    gap: 8px;
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+  #map-fabs.shift-detail {
+    transform: translateY(-57dvh);
+  }
+  #map-fabs.shift-weather {
+    transform: translateY(-240px);
+  }
+  #map-fabs.shift-layers {
+    transform: translateY(-210px);
+  }
   .fab { width: 40px; height: 40px; }
 
   /* --- Panel thành bottom-sheet --- */
@@ -679,13 +707,44 @@ html, body, #root {
     left: 10px; right: 10px;
     bottom: calc(148px + env(safe-area-inset-bottom));
     width: auto;
-    max-height: 52dvh;
+    max-height: 68dvh;
     animation: slideUp .22s ease;
   }
   @keyframes slideUp { from { opacity: 0; transform: translateY(16px);} to { opacity: 1; transform: none;} }
 
   /* Toast nằm trên dải thẻ bão, không đè banner cảnh báo */
   .toast { bottom: calc(158px + env(safe-area-inset-bottom)); }
+
+  /* Tối ưu hóa khối phân tích bão AI trên màn hình di động */
+  .ai-analysis-box {
+    padding: 10px;
+    margin: 12px 0;
+    gap: 8px;
+  }
+  .ai-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .ai-item {
+    padding: 6px 4px;
+  }
+  .ai-item .val {
+    font-size: 10.5px;
+  }
+  .ai-item .lbl {
+    font-size: 8px;
+  }
+  .ai-forecast-table {
+    font-size: 10.5px;
+  }
+  .ai-table-row {
+    padding: 6px 8px;
+    grid-template-columns: 0.8fr 1.3fr 1fr 1.3fr;
+  }
+  .ai-landfall-alert {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
 }
 
 /* Màn hình rất nhỏ */

@@ -605,7 +605,10 @@ export default function App() {
           />
 
           {/* Nút nổi Fabs */}
-          <div id="map-fabs">
+          <div 
+            id="map-fabs" 
+            className={`${selectedId ? "shift-detail" : ""} ${weatherOpen ? "shift-weather" : ""} ${layersOpen ? "shift-layers" : ""}`}
+          >
             <button
               id="btn-weather"
               className={`fab ${weatherOpen ? "active" : ""}`}
