@@ -30,7 +30,8 @@ function hurricaneIcon(color, size = 64) {
       const rad = r * (0.42 + t * 0.58);
       const x = Math.cos(ang) * rad;
       const y = Math.sin(ang) * rad;
-      t === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      if (t === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
     }
     ctx.stroke();
   }
@@ -313,20 +314,15 @@ export default function Globe({
     if (!viewerRef.current || !stormSourceRef.current) return;
     const stormSource = stormSourceRef.current;
     
-    // Clear previous
-    stormSource.entities.removeAll();
-    if (playbackRef.current) {
-      cancelAnimationFrame(playbackRef.current.raf);
-      clearTimeout(playbackRef.current.endTimer);
-      playbackRef.current = null;
+    for (const entity of [...stormSource.entities.values]) {
+      if (entity !== playbackRef.current?.ent) stormSource.entities.remove(entity);
     }
 
-    const spinProperty = (speed) => {
-      return new Cesium.CallbackProperty(
-        () => ((performance.now() / 1000) * speed) % (Math.PI * 2), false);
-    };
+    const spinProperty = (speed) => new Cesium.CallbackProperty(
+      () => ((performance.now() / 1000) * speed) % (Math.PI * 2),
+      false
+    );
 
-    // Draw active storms
     storms.forEach((storm) => {
       const color = Cesium.Color.fromCssColorString(storm.category.color);
       const pos = Cesium.Cartesian3.fromDegrees(storm.lon, storm.lat);
@@ -454,59 +450,7 @@ export default function Globe({
         }
       }
 
-      // Draw Concentric Wind Radii Rings around active selected storm
-      if (storm.id === selectedId && overlays.ovl_cones) {
-        const center = Cesium.Cartesian3.fromDegrees(storm.lon, storm.lat);
-        
-        // 34 kt Ring (Yellow) - 63 km/h
-        const r34 = Math.min(450000, Math.max(100000, storm.windKmh * 1800));
-        stormSource.entities.add({
-          position: center,
-          properties: { stormId: storm.id },
-          ellipse: {
-            semiMajorAxis: r34,
-            semiMinorAxis: r34,
-            material: Cesium.Color.YELLOW.withAlpha(0.06),
-            outline: true,
-            outlineColor: Cesium.Color.YELLOW.withAlpha(0.35),
-            height: 0,
-          },
-        });
-        
-        // 50 kt Ring (Orange) - 92 km/h
-        const r50 = Math.min(280000, Math.max(60000, storm.windKmh * 1100));
-        stormSource.entities.add({
-          position: center,
-          properties: { stormId: storm.id },
-          ellipse: {
-            semiMajorAxis: r50,
-            semiMinorAxis: r50,
-            material: Cesium.Color.ORANGE.withAlpha(0.08),
-            outline: true,
-            outlineColor: Cesium.Color.ORANGE.withAlpha(0.45),
-            height: 0,
-          },
-        });
-
-        // 64 kt Ring (Red) - 118 km/h
-        if (storm.windKmh >= 118) {
-          const r64 = Math.min(160000, Math.max(30000, storm.windKmh * 650));
-          stormSource.entities.add({
-            position: center,
-            properties: { stormId: storm.id },
-            ellipse: {
-              semiMajorAxis: r64,
-              semiMinorAxis: r64,
-              material: Cesium.Color.RED.withAlpha(0.09),
-              outline: true,
-              outlineColor: Cesium.Color.RED.withAlpha(0.6),
-              height: 0,
-            },
-          });
-        }
-      }
-
-      // Draw AI forecast track & cones if the storm doesn't have official forecast points
+      // Show the simulation when the source has no forecast track.
       const hasForecastPoints = t?.points?.some((p) => p.isForecast);
       if (storm.id === selectedId && !hasForecastPoints && overlays.ovl_tracks) {
         const aiForecast = predictStormForecast(storm);
@@ -514,21 +458,6 @@ export default function Globe({
           aiForecast.forecasts.forEach((f) => {
             const center = Cesium.Cartesian3.fromDegrees(f.lon, f.lat);
             
-            // Draw uncertainty circle at forecast hour
-            const rUncertainty = f.hour * 3000;
-            stormSource.entities.add({
-              position: center,
-              properties: { stormId: storm.id },
-              ellipse: {
-                semiMajorAxis: rUncertainty,
-                semiMinorAxis: rUncertainty,
-                material: Cesium.Color.WHITE.withAlpha(0.04),
-                outline: true,
-                outlineColor: Cesium.Color.WHITE.withAlpha(0.2),
-                height: 0,
-              },
-            });
-
             // Draw forecast point marker
             const catColor = categorize(f.windKmh).color;
             stormSource.entities.add({
@@ -542,7 +471,7 @@ export default function Globe({
                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
               },
               label: {
-                text: `+${f.hour}h (${f.windKmh} km/h)`,
+                text: `Mô phỏng +${f.hour}h · ${f.windKmh} km/h`,
                 font: "bold 10px sans-serif",
                 fillColor: Cesium.Color.WHITE,
                 outlineColor: Cesium.Color.BLACK,
@@ -575,7 +504,7 @@ export default function Globe({
         }
       }
     });
-  }, [storms, overlays.ovl_tracks, overlays.ovl_cones]);
+  }, [storms, selectedId, overlays.ovl_tracks, overlays.ovl_cones]);
 
   // 4. Update my location marker
   useEffect(() => {
@@ -625,7 +554,7 @@ export default function Globe({
       lastFlownIdRef.current = null;
       return;
     }
-    if (lastFlownIdRef.current === selectedId) return;
+    if (tourActive || lastFlownIdRef.current === selectedId) return;
 
     const s = storms.find((x) => x.id === selectedId);
     if (!s) return; // Wait until storm data is loaded in the storms list
@@ -636,7 +565,7 @@ export default function Globe({
       destination: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 2200000),
       duration: 1.8,
     });
-  }, [selectedId, storms]);
+  }, [selectedId, storms, tourActive]);
 
   // 5b. Selected custom pin marker drawing
   useEffect(() => {
@@ -758,17 +687,19 @@ export default function Globe({
   }, [playbackStorm, onStopPlayback]);
 
   // 7. Tour mode logic
+  const hasStorms = storms.length > 0;
   useEffect(() => {
-    if (!viewerRef.current || !tourActive || !storms.length) {
+    if (!viewerRef.current || !tourActive || !hasStorms) {
       clearTimeout(tourTimerRef.current);
       return;
     }
 
     const viewer = viewerRef.current;
     let i = 0;
+    let cancelled = false;
 
     const next = () => {
-      if (!tourActive) return;
+      if (cancelled) return;
       if (i >= stormsRef.current.length) {
         if (onStopTour) onStopTour();
         return;
@@ -782,10 +713,10 @@ export default function Globe({
         destination: Cesium.Cartesian3.fromDegrees(s.lon, s.lat, 2000000),
         duration: 2.4,
         complete: () => {
-          tourTimerRef.current = setTimeout(next, 2800);
+          if (!cancelled) tourTimerRef.current = setTimeout(next, 2800);
         },
         cancel: () => {
-          if (onStopTour) onStopTour();
+          if (!cancelled && onStopTour) onStopTour();
         },
       });
     };
@@ -793,9 +724,10 @@ export default function Globe({
     next();
 
     return () => {
+      cancelled = true;
       clearTimeout(tourTimerRef.current);
     };
-  }, [tourActive, onSelectStorm, onStopTour]);
+  }, [tourActive, hasStorms, onSelectStorm, onStopTour]);
 
   // 8. View Mode (3D / 2D) morphing
   useEffect(() => {

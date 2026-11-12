@@ -1,7 +1,12 @@
 import { distKm } from "../services/alerts";
 
+function normalizeSearch(value) {
+  return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d");
+}
+
 export default function Sidebar({
   storms,
+  dataStatus,
   selectedId,
   myLoc,
   searchQuery,
@@ -10,13 +15,15 @@ export default function Sidebar({
   onOpenCompare,
   onExportCSV,
 }) {
-  const query = searchQuery.trim().toLowerCase();
-  const filteredStorms = storms.filter(
-    (s) =>
-      s.name.toLowerCase().includes(query) ||
-      (s.countries && s.countries.toLowerCase().includes(query)) ||
-      s.category.label.toLowerCase().includes(query)
+  const query = normalizeSearch(searchQuery.trim());
+  const filteredStorms = storms.filter((storm) =>
+    [storm.name, storm.countries || "", storm.category.label, storm.source]
+      .some((value) => normalizeSearch(value).includes(query))
   );
+  let emptyMessage = "Hiện không có cơn bão nào đang hoạt động.";
+  if (dataStatus === "loading") emptyMessage = "Đang lấy dữ liệu từ các nguồn theo dõi bão…";
+  else if (storms.length) emptyMessage = "Không tìm thấy cơn bão nào phù hợp.";
+  else if (dataStatus === "partial") emptyMessage = "Các nguồn hiện kết nối được chưa ghi nhận bão.";
 
   const maxWind = storms.length ? Math.max(...storms.map((s) => s.windKmh || 0)) : 0;
   const cat5Count = storms.filter((s) => s.category.id === "CAT5").length;
@@ -48,14 +55,16 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="search-bar">
+      <div className="search-bar" role="search">
         <svg className="icon"><use href="#i-search"/></svg>
         <input 
           id="storm-search" 
-          type="text" 
+          type="search"
+          aria-label="Tìm bão"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Tìm bão theo tên…" 
+          placeholder="Tìm theo tên, khu vực, cấp bão…"
+          disabled={!storms.length}
           autoComplete="off"
         />
       </div>
@@ -77,36 +86,38 @@ export default function Sidebar({
         {filteredStorms.length === 0 ? (
           <div className="empty-state">
             <svg className="icon"><use href="#i-wind"/></svg><br />
-            {storms.length === 0 ? "Hiện không có cơn bão nào đang hoạt động." : "Không tìm thấy cơn bão nào phù hợp."}
+            {emptyMessage}
           </div>
         ) : (
           filteredStorms.map((s) => {
             const distance = myLoc ? Math.round(distKm(s.lat, s.lon, myLoc.lat, myLoc.lon)) : null;
             return (
-              <div 
+              <button
+                type="button"
+                aria-pressed={s.id === selectedId}
                 key={s.id}
                 className={`storm-card ${s.id === selectedId ? "selected" : ""}`}
-                onClick={() => onSelectStorm(s.id, true)}
+                onClick={() => onSelectStorm(s.id)}
                 style={{ "--cat-color": s.category.color }}
               >
-                <div className="storm-cat-badge">
+                <span className="storm-cat-badge">
                   {s.category.short}
                   <small>{s.windKmh} km/h</small>
-                </div>
-                <div className="storm-info">
-                  <div className="storm-name">
+                </span>
+                <span className="storm-info">
+                  <span className="storm-name">
                     <span 
                       className="alert-dot" 
                       style={{ background: s.alertLevel === "Red" ? "#ff3d3d" : s.alertLevel === "Orange" ? "#ff9a3d" : "#3dd68c" }}
                     />
                     {s.name}
-                  </div>
-                  <div className="storm-meta">
+                  </span>
+                  <span className="storm-meta">
                     {s.category.label} · {s.countries || s.source}
                     {distance !== null && ` · cách bạn ${distance} km`}
-                  </div>
-                </div>
-              </div>
+                  </span>
+                </span>
+              </button>
             );
           })
         )}

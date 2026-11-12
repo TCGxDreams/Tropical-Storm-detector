@@ -1,3 +1,11 @@
+const STATUS_LABELS = {
+  loading: "Đang tải",
+  live: "Trực tiếp",
+  partial: "Thiếu nguồn",
+  stale: "Dữ liệu cũ",
+  demo: "Dữ liệu mẫu",
+};
+
 export default function Header({
   viewMode,
   onViewModeChange,
@@ -7,6 +15,8 @@ export default function Header({
   onToggleTour,
   tourActive,
   onToggleHelp,
+  dataStatus,
+  refreshing,
   refreshTime,
   countdownText,
   onRefresh,
@@ -24,7 +34,7 @@ export default function Header({
       <div className="topbar-center">
         <div id="view-mode" className="segmented">
           <button 
-            data-mode="3d" 
+            data-mode="3d" aria-pressed={viewMode === "3d"}
             className={viewMode === "3d" ? "active" : ""} 
             onClick={() => onViewModeChange("3d")}
             title="Quả địa cầu 3D"
@@ -33,7 +43,7 @@ export default function Header({
           </button>
 
           <button 
-            data-mode="2d" 
+            data-mode="2d" aria-pressed={viewMode === "2d"}
             className={viewMode === "2d" ? "active" : ""} 
             onClick={() => onViewModeChange("2d")}
             title="Bản đồ phẳng"
@@ -84,18 +94,19 @@ export default function Header({
       </div>
 
       <div className="topbar-right">
-        <div id="live-badge" className="live-badge">
-          <span className="live-dot"></span> LIVE
+        <div id="live-badge" className={`live-badge status-${dataStatus}`} role="status">
+          <span className="live-dot" aria-hidden="true" /> {STATUS_LABELS[dataStatus]}
         </div>
         <div className="refresh-info">
           <div id="last-update">
-            {refreshTime ? `Cập nhật: ${refreshTime}` : "Đang tải dữ liệu…"}
+            {refreshing ? "Đang cập nhật…" : refreshTime && `Cập nhật ${refreshTime}`}
           </div>
           <div id="countdown" className="countdown">{countdownText}</div>
         </div>
         <button 
-          id="btn-refresh" 
-          className="icon-btn" 
+          id="btn-refresh"
+          className={`icon-btn ${refreshing ? "spinning" : ""}`}
+          disabled={refreshing}
           onClick={onRefresh}
           title="Làm mới ngay"
         >

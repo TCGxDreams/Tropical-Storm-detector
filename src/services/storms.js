@@ -25,41 +25,25 @@ export function escapeHtml(s) {
     .replace(/'/g, "&#39;");
 }
 
-async function fetchJSON(url, timeoutMs = 15000) {
-  const attempts = [url, ...CORS_PROXIES.map((p) => p(url))];
-  let lastErr;
+async function fetchFeed(url, read, timeoutMs = 8000) {
+  const attempts = [url, ...CORS_PROXIES.map((proxy) => proxy(url))];
+  let lastError;
   for (const target of attempts) {
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), timeoutMs);
-      const res = await fetch(target, { signal: ctrl.signal });
-      clearTimeout(t);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch (e) {
-      lastErr = e;
+      const response = await fetch(target, {
+        signal: AbortSignal.timeout(timeoutMs),
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await read(response);
+    } catch (error) {
+      lastError = error;
     }
   }
-  throw lastErr || new Error("fetch failed");
+  throw lastError;
 }
 
-async function fetchText(url, timeoutMs = 15000) {
-  const attempts = [url, ...CORS_PROXIES.map((p) => p(url))];
-  let lastErr;
-  for (const target of attempts) {
-    try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), timeoutMs);
-      const res = await fetch(target, { signal: ctrl.signal });
-      clearTimeout(t);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.text();
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr || new Error("fetch failed");
-}
+const fetchJSON = (url) => fetchFeed(url, (response) => response.json());
 
 /* ---------- Phân loại theo thang Saffir–Simpson ---------- */
 export const CATEGORIES = [
@@ -137,59 +121,9 @@ function normalizeNhc(s) {
   };
 }
 
-/* ---------- Chuẩn hoá 1 cơn bão (IBTrACS / JTWC) ---------- */
-function normalizeIbtracs(entry) {
-  const lastIdx = (entry.usa_wind?.length || 1) - 1;
-  const windKt = Number(entry.usa_wind?.[lastIdx]) || Number(entry.wmo_wind?.[lastIdx]) || 0;
-  const windKmh = Math.round(windKt * 1.852);
-  const lat = Number(entry.lat?.[lastIdx]) || 0;
-  const lon = Number(entry.lon?.[lastIdx]) || 0;
-  const name = (entry.name || "UNNAMED").toUpperCase();
-  const sid = entry.sid || `ibtracs-${name}`;
-  const basin = entry.basin?.[lastIdx] || "";
-
-  return {
-    id: `ibtracs-${sid}`,
-    source: "IBTrACS/JTWC",
-    name: escapeHtml(name),
-    lat, lon,
-    windKmh,
-    windKt: windKt || null,
-    pressure: Number(entry.usa_pres?.[lastIdx]) || Number(entry.wmo_pres?.[lastIdx]) || null,
-    movement: null,
-    alertLevel: windKmh >= 178 ? "Red" : windKmh >= 119 ? "Orange" : "Green",
-    countries: escapeHtml(basin),
-    updated: entry.iso_time?.[lastIdx] || null,
-    reportUrl: `https://www.ncei.noaa.gov/data/international-best-track-archive-for-climate-stewardship-ibtracs/v04r01/provisional/`,
-    geometryUrl: null,
-    category: categorize(windKmh),
-    track: parseIbtracksTrack(entry),
-  };
-}
-
-function parseIbtracksTrack(entry) {
-  const n = entry.lat?.length || 0;
-  if (n < 2) return null;
-  const points = [];
-  for (let i = 0; i < n; i++) {
-    const la = Number(entry.lat[i]);
-    const lo = Number(entry.lon[i]);
-    if (!Number.isFinite(la) || !Number.isFinite(lo)) continue;
-    const w = Number(entry.usa_wind?.[i]) || Number(entry.wmo_wind?.[i]) || 0;
-    points.push({
-      lat: la, lon: lo,
-      date: entry.iso_time?.[i] || null,
-      windKmh: Math.round(w * 1.852),
-      isForecast: false,
-    });
-  }
-  return { points, lines: [coords], cones: [], impacts: [] };
-}
-
 /* ---------- Parse NOAA IBTrACS ACTIVE CSV ---------- */
 function parseActiveCsv(csvText) {
   const lines = csvText.split(/\r?\n/);
-  if (lines.length < 3) return [];
 
   const headers = lines[0].split(",");
   const getIdx = (col) => headers.indexOf(col);
@@ -221,9 +155,9 @@ function parseActiveCsv(csvText) {
     const timeStr = parts[timeIdx].trim();
     const latStr = parts[latIdx].trim();
     const lonStr = parts[lonIdx].trim();
-    const windStr = parts[windIdx].trim();
-    const presStr = parts[presIdx].trim();
-    const basin = parts[basinIdx].trim();
+    const windStr = parts[windIdx]?.trim();
+    const presStr = parts[presIdx]?.trim();
+    const basin = parts[basinIdx]?.trim() || "";
 
     if (!sid) continue;
     if (name === "NOTNAMED" || name === "UNNAMED" || !name) {
@@ -242,6 +176,7 @@ function parseActiveCsv(csvText) {
       lat,
       lon,
       date: timeStr,
+      pressure,
       windKmh,
       isForecast: false,
     };
@@ -259,7 +194,7 @@ function parseActiveCsv(csvText) {
   }
 
   const results = [];
-  for (const [sid, info] of stormsMap.entries()) {
+  for (const info of stormsMap.values()) {
     info.points.sort((a, b) => new Date(a.date) - new Date(b.date));
     const latest = info.points[info.points.length - 1];
 
@@ -296,41 +231,35 @@ function parseActiveCsv(csvText) {
 
 /* ---------- Tải danh sách bão đang hoạt động ---------- */
 export async function fetchActiveStorms() {
-  const result = { storms: [], errors: [] };
-
-  let gdacsStorms = [];
-  try {
-    const gj = await fetchJSON(GDACS_LIST_URL);
-    gdacsStorms = (gj.features || [])
-      .filter((f) => f.geometry && f.geometry.type === "Point")
-      .map(normalizeGdacs);
-  } catch (e) {
-    result.errors.push("GDACS: " + e.message);
-  }
-
-  let nhcStorms = [];
-  try {
-    const nhc = await fetchJSON(NHC_URL);
-    nhcStorms = (nhc.activeStorms || []).map(normalizeNhc);
-  } catch (e) {
-    result.errors.push("NHC: " + e.message);
-  }
-
-  let ibtStorms = [];
-  try {
-    const csvText = await fetchText(IBTRACS_ACTIVE_CSV_URL, 15000);
-    ibtStorms = parseActiveCsv(csvText);
-  } catch (e) {
-    console.warn("IBTrACS ACTIVE CSV:", e.message);
-  }
+  const sources = ["GDACS", "NHC", "IBTrACS"];
+  const feeds = await Promise.allSettled([
+    fetchFeed(GDACS_LIST_URL, async (response) => {
+      const { features } = await response.json();
+      return features
+        .filter((feature) => feature.geometry?.type === "Point")
+        .map(normalizeGdacs)
+        .filter((storm) => Number.isFinite(storm.lat) && Number.isFinite(storm.lon));
+    }),
+    fetchFeed(NHC_URL, async (response) => {
+      const { activeStorms } = await response.json();
+      return activeStorms.map(normalizeNhc);
+    }),
+    fetchFeed(IBTRACS_ACTIVE_CSV_URL, async (response) => parseActiveCsv(await response.text())),
+  ]);
+  const errors = feeds.flatMap((feed, index) =>
+    feed.status === "rejected" ? [sources[index]] : []
+  );
+  const [gdacs, nhcStorms, ibtStorms] = feeds.map((feed) =>
+    feed.status === "fulfilled" ? feed.value : []
+  );
 
   const byEvent = new Map();
-  for (const s of gdacsStorms) {
+  for (const s of gdacs) {
     const key = s.eventid ?? s.name;
     const prev = byEvent.get(key);
     if (!prev || (s.episodeid || 0) > (prev.episodeid || 0)) byEvent.set(key, s);
   }
-  gdacsStorms = [...byEvent.values()];
+  const gdacsStorms = [...byEvent.values()];
 
   const baseName = (n) => {
     const str = String(n).toUpperCase();
@@ -367,8 +296,7 @@ export async function fetchActiveStorms() {
     }
   }
 
-  result.storms = gdacsStorms.sort((a, b) => b.windKmh - a.windKmh);
-  return result;
+  return { storms: gdacsStorms.sort((a, b) => b.windKmh - a.windKmh), errors, sourceCount: sources.length };
 }
 
 /* ---------- Tải đường đi + vùng ảnh hưởng của 1 cơn bão (GDACS) ---------- */

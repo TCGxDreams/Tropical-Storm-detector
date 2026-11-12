@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Globe from "./components/Globe";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
@@ -18,6 +18,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState(null);
   const [myLoc, setMyLoc] = useState(() => getSetting("myLoc", null));
   const [searchQuery, setSearchQuery] = useState("");
+  const [dataStatus, setDataStatus] = useState("loading");
   const [refreshTime, setRefreshTime] = useState("");
   const [countdownText, setCountdownText] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -52,8 +53,16 @@ export default function App() {
   const [selectedPin, setSelectedPin] = useState(null);
 
   const [vnAlertDismissed, setVnAlertDismissed] = useState("");
+  const mountedRef = useRef(false);
+  const refreshingRef = useRef(false);
+  const lastLiveRef = useRef(null);
+  const trackRequestsRef = useRef(new Set());
+  const deepLinkRef = useRef(new URLSearchParams(window.location.search).get("storm"));
   const refreshTimerRef = useRef(null);
   const toastTimerRef = useRef(null);
+
+  const stopTour = useCallback(() => setTourActive(false), []);
+  const stopPlayback = useCallback(() => setPlaybackStorm(null), []);
 
   const activeStorm = storms.find((s) => s.id === selectedId);
 
@@ -67,103 +76,101 @@ export default function App() {
   }, []);
 
   /* ================= Load and refresh storm data ================= */
-  const handleRefresh = useCallback(async () => {
-    if (refreshing) return;
+  const handleRefresh = useCallback(async function refresh() {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true;
+    clearInterval(refreshTimerRef.current);
     setRefreshing(true);
-    showToast("Đang tải dữ liệu bão mới nhất…");
+    setCountdownText("");
 
     try {
-      const { storms: fresh, errors } = await fetchActiveStorms();
-      const badge = document.getElementById("live-badge");
-
-      if (!fresh.length && errors.length >= 2) {
-        const demo = demoStorms();
-        setStorms(demo);
-        if (badge) {
-          badge.classList.add("stale");
-          badge.innerHTML = `<span class="live-dot"></span> DEMO`;
-        }
-        showToast("Không kết nối được nguồn dữ liệu — đang hiển thị dữ liệu mẫu.", true, 8000);
-      } else {
-        // Keep old tracks to avoid downloading again
-        setStorms((prev) => {
-          const oldTracks = new Map(prev.map((s) => [s.id, s.track]));
-          return fresh.map((s) => ({
-            ...s,
-            track: oldTracks.get(s.id) || null,
-          }));
-        });
-        if (badge) {
-          badge.classList.remove("stale");
-          badge.innerHTML = `<span class="live-dot"></span> LIVE`;
-        }
-        if (errors.length) {
-          showToast(`Một nguồn dữ liệu bị lỗi (${errors[0]})`, true);
-        }
+      const { storms: fresh, errors, sourceCount } = await fetchActiveStorms();
+      if (!mountedRef.current) return;
+      if (errors.length === sourceCount) {
+        throw new Error(errors.join(", "));
       }
 
-      setRefreshTime(new Date().toLocaleTimeString("vi-VN", { hour12: false }));
-    } catch (e) {
-      showToast("Lỗi tải dữ liệu: " + e.message, true);
+      lastLiveRef.current = new Date();
+      trackRequestsRef.current.clear();
+      setStorms((previous) => {
+        const oldStorms = new Map(previous.map((storm) => [storm.id, storm]));
+        return fresh.map((storm) => {
+          const old = oldStorms.get(storm.id);
+          return !storm.track && storm.geometryUrl && old?.geometryUrl === storm.geometryUrl
+            ? { ...storm, track: old.track }
+            : storm;
+        });
+      });
+      setDataStatus(errors.length ? "partial" : "live");
+      setRefreshTime(lastLiveRef.current.toLocaleTimeString("vi-VN", { hour12: false }));
+      if (errors.length) {
+        showToast(`Chưa lấy được dữ liệu từ ${errors.join(", ")}.`, true);
+      }
+    } catch {
+      if (!mountedRef.current) return;
+      if (lastLiveRef.current) {
+        setDataStatus("stale");
+        showToast("Mất kết nối nguồn bão. Đang hiển thị lần cập nhật gần nhất.", true);
+      } else {
+        setStorms(demoStorms());
+        setDataStatus("demo");
+        showToast("Không kết nối được nguồn bão. Đang hiển thị dữ liệu mẫu.", true);
+      }
     } finally {
-      setRefreshing(false);
-      // Reset countdown timer
-      clearInterval(refreshTimerRef.current);
-      const nextTime = Date.now() + REFRESH_MS;
-      refreshTimerRef.current = setInterval(() => {
-        const remain = Math.max(0, nextTime - Date.now());
-        const m = Math.floor(remain / 60000), s = Math.floor((remain % 60000) / 1000);
-        setCountdownText(`Làm mới sau ${m}:${String(s).padStart(2, "0")}`);
-        if (remain <= 0) {
-          handleRefresh();
-        }
-      }, 1000);
+      refreshingRef.current = false;
+      if (mountedRef.current) {
+        setRefreshing(false);
+        const nextTime = Date.now() + REFRESH_MS;
+        const tick = () => {
+          const seconds = Math.max(0, Math.ceil((nextTime - Date.now()) / 1000));
+          setCountdownText(`Làm mới sau ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`);
+          if (seconds === 0) void refresh();
+        };
+        refreshTimerRef.current = setInterval(tick, 1000);
+        tick();
+      }
     }
-  }, [refreshing, showToast]);
+  }, [showToast]);
 
-  // Load track info lazy-load
-  const loadTrackFor = useCallback(async (s) => {
-    if (s.track || !s.geometryUrl) return;
+  const loadTrackFor = useCallback(async (storm) => {
+    if (storm.track || !storm.geometryUrl) return;
+    const key = JSON.stringify([storm.id, storm.geometryUrl]);
+    if (trackRequestsRef.current.has(key)) return;
+    trackRequestsRef.current.add(key);
+
     try {
-      const track = await fetchTrack(s);
-      setStorms((prev) =>
-        prev.map((item) => (item.id === s.id ? { ...item, track } : item))
-      );
-    } catch (e) {
-      console.warn("Không tải được đường đi của", s.name, e);
+      const track = await fetchTrack(storm);
+      if (!mountedRef.current) return;
+      setStorms((previous) => previous.map((item) =>
+        item.id === storm.id && item.geometryUrl === storm.geometryUrl && !item.track
+          ? { ...item, track }
+          : item
+      ));
+    } catch (error) {
+      console.warn("Không tải được đường đi của", storm.name, error);
     }
   }, []);
 
-  // Sync selected storm changes
   useEffect(() => {
-    if (activeStorm) {
-      loadTrackFor(activeStorm);
-    }
-  }, [selectedId, activeStorm, loadTrackFor]);
-
-  // Trigger initial fetch
-  useEffect(() => {
-    handleRefresh();
+    mountedRef.current = true;
+    void handleRefresh();
     return () => {
+      mountedRef.current = false;
       clearInterval(refreshTimerRef.current);
       clearTimeout(toastTimerRef.current);
     };
-  }, []);
+  }, [handleRefresh]);
 
-  // Preload track for top 5 strongest storms
   useEffect(() => {
-    if (storms.length > 0) {
-      storms.slice(0, 5).forEach((s) => loadTrackFor(s));
-    }
-  }, [storms, loadTrackFor]);
+    if (activeStorm) void loadTrackFor(activeStorm);
+    storms.slice(0, 5).forEach(loadTrackFor);
+  }, [storms, activeStorm, loadTrackFor]);
 
-  /* ================= Deep Link ================= */
   useEffect(() => {
-    if (storms.length > 0) {
-      const id = new URLSearchParams(window.location.search).get("storm");
-      if (id && storms.some((s) => s.id === id)) {
-        setSelectedId(id);
-      }
+    const id = deepLinkRef.current;
+    if (id && storms.some((storm) => storm.id === id)) {
+      deepLinkRef.current = null;
+      setSelectedId(id);
     }
   }, [storms]);
 
@@ -194,24 +201,24 @@ export default function App() {
     );
   }, [showToast]);
 
-  const loadWeather = useCallback(async (lat, lon) => {
-    try {
-      const data = await fetchWeather(lat, lon);
-      setWeatherData(data);
-      setWeatherOpen(true);
-    } catch (e) {
-      showToast("Không tải được thời tiết địa phương.", true);
-    }
-  }, [showToast]);
-
-  // Load weather when myLoc or selectedPin changes
   useEffect(() => {
-    if (selectedPin) {
-      loadWeather(selectedPin.lat, selectedPin.lon);
-    } else if (myLoc) {
-      loadWeather(myLoc.lat, myLoc.lon);
-    }
-  }, [myLoc, selectedPin, loadWeather]);
+    const location = selectedPin || myLoc;
+    if (!location) return;
+
+    const controller = new AbortController();
+    setWeatherData(null);
+    fetchWeather(location.lat, location.lon, controller.signal)
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        setWeatherData(data);
+        setWeatherOpen(true);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) showToast("Không tải được thời tiết địa phương.", true);
+      });
+
+    return () => controller.abort();
+  }, [myLoc, selectedPin, showToast]);
 
   // Deselect pin when selecting a storm
   useEffect(() => {
@@ -251,6 +258,7 @@ export default function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     showToast("Đã xuất danh sách bão ra file CSV!");
   }, [storms, showToast]);
 
@@ -307,20 +315,13 @@ export default function App() {
   }, [handleRefresh]);
 
   /* ================= VN alert calculations ================= */
-  const vnAlertStorm = getNearVnStorm(storms);
+  const vnAlertStorm = useMemo(() =>
+    dataStatus === "live" || dataStatus === "partial" ? getNearVnStorm(storms) : null,
+  [dataStatus, storms]);
   const showVnAlert = vnAlertStorm && vnAlertDismissed !== vnAlertStorm.s.id;
 
   return (
     <>
-      {/* Màn hình khởi động */}
-      {storms.length === 0 && (
-        <div id="splash">
-          <svg className="splash-icon" aria-hidden="true"><use href="#i-storm"/></svg>
-          <div className="splash-title">StormWatch <span className="brand-sub">Global</span></div>
-          <div className="splash-text">Đang tải quả địa cầu &amp; dữ liệu bão…</div>
-        </div>
-      )}
-
       <Header
         viewMode={viewMode}
         onViewModeChange={(mode) => {
@@ -333,6 +334,8 @@ export default function App() {
         onToggleTour={() => setTourActive((prev) => !prev)}
         tourActive={tourActive}
         onToggleHelp={() => setHelpOpen((prev) => !prev)}
+        dataStatus={dataStatus}
+        refreshing={refreshing}
         refreshTime={refreshTime}
         countdownText={countdownText}
         onRefresh={handleRefresh}
@@ -341,6 +344,7 @@ export default function App() {
       <div id="main">
         <Sidebar
           storms={storms}
+          dataStatus={dataStatus}
           selectedId={selectedId}
           myLoc={myLoc}
           searchQuery={searchQuery}
@@ -364,11 +368,11 @@ export default function App() {
             brightness={brightness}
             lighting={lighting}
             autoRotate={autoRotate}
-            onSelectStorm={(id) => setSelectedId(id)}
+            onSelectStorm={setSelectedId}
             tourActive={tourActive}
-            onStopTour={() => setTourActive(false)}
+            onStopTour={stopTour}
             playbackStorm={playbackStorm}
-            onStopPlayback={() => setPlaybackStorm(null)}
+            onStopPlayback={stopPlayback}
             viewMode={viewMode}
             selectedPin={selectedPin}
             onSelectCoordinates={(coords) => {
@@ -576,7 +580,7 @@ export default function App() {
             onShare={async () => {
               if (!activeStorm) return;
               const url = `${window.location.origin}${window.location.pathname}?storm=${encodeURIComponent(activeStorm.id)}`;
-              const text = `${activeStorm.category.label} ${activeStorm.name} — gió ${activeStorm.windKmh} km/h. Theo dõi trực tiếp:`;
+              const text = `${activeStorm.category.label} ${activeStorm.name} · gió ${activeStorm.windKmh} km/h`;
               if (navigator.share) {
                 try { await navigator.share({ title: "StormWatch Global", text, url }); } catch { /* user cancel */ }
               } else {
@@ -590,7 +594,7 @@ export default function App() {
             }}
             isPlaying={playbackStorm?.id === selectedId}
             onPlayPlayback={() => setPlaybackStorm(activeStorm)}
-            onStopPlayback={() => setPlaybackStorm(null)}
+            onStopPlayback={stopPlayback}
           />
 
           {/* Weather Widget */}
@@ -662,7 +666,7 @@ export default function App() {
             onClose={() => setCompareOpen(false)}
             storms={storms}
             myLoc={myLoc}
-            onSelectStorm={(id) => setSelectedId(id)}
+            onSelectStorm={setSelectedId}
           />
 
           {/* Hướng dẫn sử dụng */}
@@ -696,7 +700,7 @@ export default function App() {
           )}
 
           {/* Toast thông báo */}
-          <div id="status-toast" className={`toast ${toastMsg.warn ? "warn" : ""} ${toastMsg.visible ? "" : "hidden"}`}>
+          <div id="status-toast" role="status" className={`toast ${toastMsg.warn ? "warn" : ""} ${toastMsg.visible ? "" : "hidden"}`}>
             {toastMsg.warn && <svg className="icon"><use href="#i-alert"/></svg>}
             <span>{toastMsg.text}</span>
           </div>

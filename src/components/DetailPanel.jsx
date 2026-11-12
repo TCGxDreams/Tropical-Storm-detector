@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { distKm, distToVN, predictStormForecast } from "../services/alerts";
 import { drawWindChart, drawPressureChart } from "../utils/chart";
 
@@ -15,7 +15,7 @@ export default function DetailPanel({
   const windCanvasRef = useRef(null);
   const pressureCanvasRef = useRef(null);
 
-  const aiForecast = storm ? predictStormForecast(storm) : null;
+  const aiForecast = useMemo(() => predictStormForecast(storm), [storm]);
 
   const formatDateTime = (d) => {
     if (!d) return "—";
@@ -23,7 +23,8 @@ export default function DetailPanel({
     return isNaN(dt) ? String(d) : dt.toLocaleString("vi-VN", { hour12: false });
   };
 
-  const chartPoints = storm?.track?.points?.filter((p) => p.windKmh > 0) || [];
+  const trackPoints = storm?.track?.points;
+  const chartPoints = useMemo(() => trackPoints?.filter((point) => point.windKmh > 0) || [], [trackPoints]);
   const hasTrackData = chartPoints.length >= 2;
 
   // Redraw charts when storm track changes or when panel opens
@@ -132,10 +133,11 @@ export default function DetailPanel({
                 <rect x="9" y="9" width="6" height="6" />
                 <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
               </svg>
-              <span>Phân tích & Dự báo AI</span>
+              <span>Mô phỏng xu hướng</span>
               <span className="ai-beta-badge">BETA</span>
             </div>
             
+            <p className="simulation-note">Kết quả tham khảo từ mô hình đơn giản. Hãy dùng bản tin khí tượng chính thức khi cần ra quyết định.</p>
             <div className="ai-grid">
               <div className="ai-item">
                 <span className="lbl">Hướng đi</span>
@@ -146,7 +148,7 @@ export default function DetailPanel({
                 <span className="val">{aiForecast.speedKmh} km/h</span>
               </div>
               <div className="ai-item">
-                <span className="lbl">Nhiệt độ biển SST</span>
+                <span className="lbl">SST ước tính</span>
                 <span className="val" style={{ color: aiForecast.currentSST >= 28.5 ? "#ff9a3d" : "var(--text)" }}>
                   {aiForecast.currentSST}°C
                 </span>
@@ -155,21 +157,21 @@ export default function DetailPanel({
 
             {aiForecast.landfall ? (
               <div className="ai-landfall-alert danger">
-                <div className="alert-badge text-glow-red">CẢNH BÁO ĐỔ BỘ</div>
+                <div className="alert-badge text-glow-red">TIẾP CẬN BỜ BIỂN (MÔ PHỎNG)</div>
                 <div className="alert-content">
-                  Dự kiến đổ bộ đất liền <b>{aiForecast.landfall.region}</b> sau <b>{aiForecast.landfall.etaHours}h tới</b>. Sức gió đổ bộ đạt <b>{aiForecast.landfall.estimatedWindKmh} km/h</b>.
+                  Quỹ đạo mô phỏng đi vào phạm vi 40 km quanh <b>{aiForecast.landfall.region}</b> sau khoảng <b>{aiForecast.landfall.etaHours} giờ</b>. Gió ước tính <b>{aiForecast.landfall.estimatedWindKmh} km/h</b>.
                 </div>
               </div>
             ) : (
               <div className="ai-landfall-alert safe">
                 <div className="alert-badge safe">DỰ BÁO XU HƯỚNG</div>
                 <div className="alert-content">
-                  Không có khả năng đổ bộ trực tiếp vào đất liền Việt Nam trong 72 giờ tới.
+                  Trong mô phỏng 72 giờ, tâm bão nằm ngoài phạm vi 40 km tính từ bờ biển Việt Nam.
                 </div>
               </div>
             )}
 
-            <div className="ai-table-title">DỰ BÁO CƯỜNG ĐỘ 72H TIẾP THEO</div>
+            <div className="ai-table-title">CƯỜNG ĐỘ MÔ PHỎNG TRONG 72 GIỜ</div>
             <div className="ai-forecast-table">
               <div className="ai-table-row header">
                 <div>Thời gian</div>

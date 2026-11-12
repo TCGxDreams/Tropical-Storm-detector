@@ -200,9 +200,9 @@ export function predictStormForecast(storm) {
   // 1. Xác định hướng (bearing) và tốc độ (km/h) hiện tại của bão
   let currentBearing = 280; // Tây Tây Bắc là hướng mặc định phổ biến của bão
   let currentSpeed = 16;    // 16 km/h
-  let hasHistory = false;
+  let hasMovement = false;
 
-  const pts = storm.track?.points || [];
+  const pts = storm.track?.points?.filter((point) => !point.isForecast) || [];
   if (pts.length >= 2) {
     const pt1 = pts[pts.length - 2];
     const pt2 = pts[pts.length - 1]; // vị trí hiện tại
@@ -218,18 +218,24 @@ export function predictStormForecast(storm) {
       currentSpeed = Math.min(60, Math.max(5, d / dt)); // giới hạn tốc độ di chuyển 5-60 km/h
       currentBearing = bearing(pt1.lat * RAD, pt1.lon * RAD, pt2.lat * RAD, pt2.lon * RAD) / RAD;
       currentBearing = (currentBearing + 360) % 360;
-      hasHistory = true;
+      hasMovement = true;
     }
-  } else if (storm.movement) {
+  }
+  if (!hasMovement && storm.movement) {
     // Phân tích chuỗi movement ví dụ: "285° / 12 kt" hoặc "WNW 15 km/h"
     const mDir = storm.movement.match(/(\d+)°/);
     const mSpd = storm.movement.match(/(\d+)\s*(kt|km\/h)/i);
-    if (mDir) currentBearing = parseFloat(mDir[1]);
-    if (mSpd) {
+    if (mDir && mSpd) {
+      currentBearing = Number(mDir[1]);
       const val = parseFloat(mSpd[1]);
       currentSpeed = mSpd[2].toLowerCase() === "kt" ? val * 1.852 : val;
+      hasMovement = true;
     }
   }
+
+  if (!hasMovement || !storm.windKmh) return null;
+  const initialBearing = currentBearing;
+  const initialSpeed = currentSpeed;
 
   // 2. Chạy mô phỏng từng mốc thời gian 24h, 48h, 72h
   const forecastPoints = [];
@@ -319,12 +325,11 @@ export function predictStormForecast(storm) {
   };
 
   return {
-    bearing: Math.round(currentBearing),
-    bearingText: getCompassDir(currentBearing),
-    speedKmh: Math.round(currentSpeed),
+    bearing: Math.round(initialBearing) % 360,
+    bearingText: getCompassDir(initialBearing),
+    speedKmh: Math.round(initialSpeed),
     currentSST: Number(currentSST.toFixed(1)),
     forecasts: forecastPoints,
     landfall: landfallWarning,
-    hasHistory,
   };
 }

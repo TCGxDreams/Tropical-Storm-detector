@@ -28,34 +28,6 @@ html, body, #root {
   flex-direction: column;
 }
 
-/* ============ Màn hình khởi động ============ */
-#splash {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  background: radial-gradient(ellipse at 50% 40%, #0b1226 0%, var(--bg) 70%);
-  transition: opacity .55s ease;
-}
-#splash.fade-out { opacity: 0; pointer-events: none; }
-.splash-icon {
-  width: 64px; height: 64px;
-  fill: none;
-  stroke: var(--accent2);
-  stroke-width: 1.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  filter: drop-shadow(0 0 18px rgba(0, 224, 255, .55));
-  animation: spin 3.5s linear infinite;
-}
-.splash-title { font-size: 22px; font-weight: 700; letter-spacing: .5px; }
-.splash-text { font-size: 13px; color: var(--text-dim); animation: blink 1.6s ease-in-out infinite; }
-@keyframes blink { 50% { opacity: .45; } }
-
 /* ============ Cảnh báo bão gần Việt Nam ============ */
 .vn-alert {
   position: absolute;
@@ -230,22 +202,22 @@ html, body, #root {
 .live-badge {
   display: flex; align-items: center; gap: 7px;
   padding: 5px 12px;
-  border: 1px solid rgba(255, 61, 61, .5);
+  border: 1px solid var(--panel-border);
   border-radius: 999px;
-  color: #ff6b6b;
+  color: var(--text-dim);
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1.5px;
 }
-.live-badge.stale { border-color: rgba(255,200,60,.5); color: #ffc83c; }
+.live-badge.status-live { border-color: #276b55; color: #78e8b6; }
+.live-badge:is(.status-partial, .status-stale, .status-demo) {
+  border-color: #806433;
+  color: #ffd582;
+}
 .live-dot {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--danger);
-  animation: pulse 1.6s ease-in-out infinite;
+  background: currentColor;
 }
-.live-badge.stale .live-dot { background: #ffc83c; }
-@keyframes pulse { 0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,61,61,.5);} 50% { opacity:.55; box-shadow: 0 0 0 6px rgba(255,61,61,0);} }
-
 .refresh-info { text-align: right; font-size: 11.5px; line-height: 1.45; }
 #last-update { color: var(--text); }
 .countdown { color: var(--text-dim); }
@@ -288,11 +260,63 @@ html, body, #root {
   border-radius: 999px;
 }
 
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 12px 8px;
+  padding: 0 10px;
+  min-height: 38px;
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text-dim);
+}
+.search-bar:focus-within { border-color: var(--accent2); }
+.search-bar input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color-scheme: dark;
+}
+.search-bar input::placeholder { color: var(--text-dim); }
+.storm-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 12px;
+}
+.storm-stats:empty { display: none; }
+.stat-pill {
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.stat-pill b { color: var(--text); }
+button:focus-visible {
+  outline: 2px solid var(--accent2);
+  outline-offset: -2px;
+}
+button:disabled { cursor: default; opacity: .65; }
+
 .storm-list { flex: 1; overflow-y: auto; padding: 4px 12px 12px; }
 .storm-list::-webkit-scrollbar { width: 8px; height: 8px; }
 .storm-list::-webkit-scrollbar-thumb { background: rgba(120,150,220,.25); border-radius: 4px; }
 
 .storm-card {
+  width: 100%;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
   display: flex; align-items: center; gap: 12px;
   padding: 12px;
   margin-bottom: 9px;
@@ -590,7 +614,7 @@ html, body, #root {
   .icon-btn { padding: 8px 11px; }
   .icon-btn .btn-text { display: none; }  /* chỉ hiện icon trên mobile */
 
-  .live-badge { padding: 4px 10px; font-size: 10.5px; letter-spacing: 1px; }
+  .live-badge { padding: 4px 8px; font-size: 10.5px; }
   .refresh-info { font-size: 10.5px; line-height: 1.35; }
   .countdown { display: none; }          /* mobile chỉ hiện giờ cập nhật */
   .upd-prefix { display: none; }
@@ -664,6 +688,9 @@ html, body, #root {
     -webkit-backdrop-filter: blur(10px);
   }
 
+  .search-bar { width: min(280px, calc(100% - 20px)); margin: 0 10px 6px; }
+  .search-bar input { font-size: 16px; }
+  .storm-stats { display: none; }
   .sidebar-foot { display: none; }     /* chú giải ẩn trên mobile cho thoáng */
   #attribution { display: none; }
 
@@ -686,7 +713,7 @@ html, body, #root {
   /* Nút nổi tránh dải thẻ bão ở đáy, hỗ trợ dịch chuyển mượt mà */
   #map-fabs {
     right: 10px;
-    bottom: calc(168px + env(safe-area-inset-bottom));
+    bottom: calc(180px + env(safe-area-inset-bottom));
     gap: 8px;
     transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
@@ -705,7 +732,7 @@ html, body, #root {
   .panel, #layers-panel {
     top: auto;
     left: 10px; right: 10px;
-    bottom: calc(148px + env(safe-area-inset-bottom));
+    bottom: calc(164px + env(safe-area-inset-bottom));
     width: auto;
     max-height: 68dvh;
     animation: slideUp .22s ease;
@@ -713,7 +740,7 @@ html, body, #root {
   @keyframes slideUp { from { opacity: 0; transform: translateY(16px);} to { opacity: 1; transform: none;} }
 
   /* Toast nằm trên dải thẻ bão, không đè banner cảnh báo */
-  .toast { bottom: calc(158px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(178px + env(safe-area-inset-bottom)); }
 
   /* Tối ưu hóa khối phân tích bão AI trên màn hình di động */
   .ai-analysis-box {
@@ -991,7 +1018,7 @@ html, body, #root {
   .weather-widget {
     left: 10px;
     right: 10px;
-    bottom: calc(148px + env(safe-area-inset-bottom));
+    bottom: calc(164px + env(safe-area-inset-bottom));
     max-height: 380px;
     height: auto;
   }
@@ -1153,4 +1180,16 @@ html, body, #root {
 
 .ai-table-row:not(.header):nth-child(even) {
   background: rgba(255, 255, 255, 0.015);
+}
+
+.simulation-note {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand-icon, .icon-btn.spinning .icon, .panel, .modal-card, .weather-widget, .vn-alert {
+    animation: none;
+  }
 }

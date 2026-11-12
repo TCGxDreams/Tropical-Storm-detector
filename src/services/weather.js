@@ -37,7 +37,7 @@ export function windDirection(deg) {
   return dirs[Math.round(deg / 45) % 8];
 }
 
-export async function fetchWeather(lat, lon) {
+export async function fetchWeather(lat, lon, signal) {
   const params = new URLSearchParams({
     latitude: lat.toFixed(4),
     longitude: lon.toFixed(4),
@@ -52,7 +52,7 @@ export async function fetchWeather(lat, lon) {
     timezone: "auto",
     forecast_days: 2,
   });
-  const res = await fetch(`${API}?${params}`);
+  const res = await fetch(`${API}?${params}`, { signal });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return await res.json();
 }
