@@ -25,11 +25,11 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState({ text: "", warn: false, visible: false });
 
   // Imagery & Overlay Settings
-  const [baseLayer, setBaseLayer] = useState(() => getSetting("base", "trueColor"));
+  const [baseLayer, setBaseLayer] = useState(() => getSetting("base", "blueMarble"));
   const [viewMode, setViewMode] = useState(() => getSetting("mode", "3d"));
   const [brightness, setBrightness] = useState(() => getSetting("brightness", 1));
   const [lighting, setLighting] = useState(() => getSetting("lighting", false));
-  const [autoRotate, setAutoRotate] = useState(() => getSetting("autoRotate", true));
+  const [autoRotate, setAutoRotate] = useState(() => getSetting("autoRotate", false));
   const [overlays, setOverlays] = useState(() => ({
     ref: getSetting("ovl_ref", true),
     labels: getSetting("ovl_labels", false),
@@ -330,6 +330,7 @@ export default function App() {
         }}
         autoRotate={autoRotate}
         onToggleRotate={() => setAutoRotate((prev) => { saveSettings({ autoRotate: !prev }); return !prev; })}
+        layersOpen={layersOpen}
         onToggleLayers={() => setLayersOpen((prev) => !prev)}
         onToggleTour={() => setTourActive((prev) => !prev)}
         tourActive={tourActive}
@@ -406,7 +407,7 @@ export default function App() {
                       saveSettings({ base: val });
                     }}
                   />{" "}
-                  Ảnh vệ tinh màu thật (hôm nay)
+                  Ảnh vệ tinh gần nhất
                 </label>
                 <label>
                   <input
@@ -420,7 +421,7 @@ export default function App() {
                       saveSettings({ base: val });
                     }}
                   />{" "}
-                  Blue Marble (NASA)
+                  Địa hình toàn cầu · Blue Marble
                 </label>
                 <label>
                   <input
@@ -611,7 +612,7 @@ export default function App() {
           {/* Nút nổi Fabs */}
           <div 
             id="map-fabs" 
-            className={`${selectedId ? "shift-detail" : ""} ${weatherOpen ? "shift-weather" : ""} ${layersOpen ? "shift-layers" : ""}`}
+            className={activeStorm || (weatherOpen && weatherData) || layersOpen ? "panel-open" : ""}
           >
             <button
               id="btn-weather"
@@ -626,29 +627,6 @@ export default function App() {
               title="Thời tiết tại vị trí của bạn"
             >
               <svg className="icon"><use href="#i-thermometer"/></svg>
-            </button>
-            <button
-              id="btn-notify"
-              className="fab"
-              onClick={async () => {
-                if (!("Notification" in window)) {
-                  showToast("Trình duyệt không hỗ trợ thông báo.", true);
-                  return;
-                }
-                if (Notification.permission === "denied") {
-                  showToast("Thông báo đang bị chặn — hãy cấp quyền trong cài đặt.", true);
-                  return;
-                }
-                const perm = await Notification.requestPermission();
-                if (perm === "granted") {
-                  showToast("Thông báo đã được bật!");
-                } else {
-                  showToast("Chưa được cấp quyền thông báo.", true);
-                }
-              }}
-              title="Thông báo khi có bão mới"
-            >
-              <svg className="icon"><use href="#i-bell"/></svg>
             </button>
             <button
               id="btn-locate"
@@ -706,7 +684,8 @@ export default function App() {
           </div>
 
           <div id="attribution">
-            Ảnh: NASA GIBS / EOSDIS · Dữ liệu bão: GDACS, NOAA/NHC, IBTrACS
+            {baseLayer === "osm" && <><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap</a> · </>}
+            NASA GIBS · Natural Earth
           </div>
         </div>
       </div>

@@ -1,15 +1,15 @@
 /* ============ StormWatch Global — NASA-style dark UI ============ */
 :root {
-  --bg: #05080f;
-  --bg2: #0a1020;
-  --panel: rgba(10, 16, 32, 0.92);
-  --panel-border: rgba(90, 140, 255, 0.18);
-  --text: #e8eefc;
-  --text-dim: #8fa3c8;
-  --accent: #3d8bff;
-  --accent2: #00e0ff;
-  --danger: #ff3d3d;
-  --radius: 12px;
+  --bg: #0a1118;
+  --bg2: #101c25;
+  --panel: rgba(16, 28, 37, .97);
+  --panel-border: #2a3b47;
+  --text: #eef5f4;
+  --text-dim: #a8bbc3;
+  --accent: #82e4cb;
+  --accent2: #a1f1dc;
+  --danger: #ff716b;
+  --radius: 16px;
   font-size: 15px;
 }
 
@@ -21,7 +21,7 @@ html, body, #root {
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
-  font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
 }
 #root {
   display: flex;
@@ -123,10 +123,9 @@ html, body, #root {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 10px 18px;
-  padding-top: max(10px, env(safe-area-inset-top));
-  background: linear-gradient(180deg, #0b1226 0%, #070c1a 100%);
-  border-bottom: 1px solid var(--panel-border);
+  min-height: 70px;
+  padding: 12px 22px;
+  padding-top: max(12px, env(safe-area-inset-top));
   position: relative;
   z-index: 20;
 }
@@ -134,38 +133,39 @@ html, body, #root {
 .brand { display: flex; align-items: center; gap: 11px; min-width: 0; overflow: hidden; }
 .brand-text { min-width: 0; }
 .brand-icon {
-  width: 30px; height: 30px;
+  width: 38px; height: 38px;
+  padding: 7px;
+  border-radius: 12px;
+  background: #17342f;
   flex-shrink: 0;
   fill: none;
   stroke: var(--accent2);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 8px rgba(0, 224, 255, .45));
-  animation: spin 14s linear infinite;
+
 }
 @keyframes spin { to { transform: rotate(-360deg); } }
 .brand-text h1 {
-  font-size: 18px; font-weight: 700; letter-spacing: .5px;
+  font-size: 19px; font-weight: 750; letter-spacing: -.45px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.brand-sub {
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
+.brand-sub { color: var(--text-dim); font-weight: 500; }
 .brand-text p { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
 
 .topbar-center { display: flex; align-items: center; gap: 9px; }
 
 .segmented {
   display: flex;
-  background: rgba(255,255,255,.06);
+  gap: 2px;
+  padding: 3px;
+  background: var(--bg2);
   border: 1px solid var(--panel-border);
-  border-radius: 9px;
-  overflow: hidden;
+  border-radius: 12px;
 }
 .segmented button {
-  padding: 7px 15px;
+  padding: 7px 13px;
+  border-radius: 8px;
   background: transparent;
   color: var(--text-dim);
   border: none;
@@ -174,7 +174,7 @@ html, body, #root {
   cursor: pointer;
   transition: all .15s;
 }
-.segmented button.active { background: var(--accent); color: #fff; }
+.segmented button.active { background: var(--accent); color: #0a231d; }
 .segmented button:not(.active):hover { color: var(--text); }
 
 .icon-btn {
@@ -192,8 +192,8 @@ html, body, #root {
   transition: all .15s;
   white-space: nowrap;
 }
-.icon-btn:hover { background: rgba(61,139,255,.2); border-color: var(--accent); }
-.icon-btn.active { background: rgba(61,139,255,.28); border-color: var(--accent); }
+.icon-btn:hover, .icon-btn.active { background: #193733; border-color: #538d7c; }
+.icon-btn.active { color: var(--accent2); }
 .icon-btn.spinning .icon { animation: spin-cw .9s linear infinite; }
 @keyframes spin-cw { to { transform: rotate(360deg); } }
 
@@ -223,23 +223,24 @@ html, body, #root {
 .countdown { color: var(--text-dim); }
 
 /* ============ Layout ============ */
-#main { flex: 1; min-height: 0; display: flex; }
+#main { flex: 1; min-height: 0; display: flex; gap: 12px; padding: 0 16px 16px; }
 
 /* ============ Sidebar ============ */
 #sidebar {
-  width: 320px;
-  min-width: 320px;
+  width: clamp(280px, 25vw, 336px);
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg2);
-  border-right: 1px solid var(--panel-border);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
   z-index: 10;
 }
 .sidebar-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px 10px;
+  padding: 16px 14px 12px;
 }
-.sidebar-head h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+.sidebar-head h2 { font-size: 15px; letter-spacing: -.2px; }
 .sidebar-head-right { display: flex; align-items: center; gap: 8px; }
 .mini-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -253,8 +254,8 @@ html, body, #root {
 .mini-btn:hover { color: var(--text); border-color: var(--accent); }
 .mini-btn .icon { width: 14px; height: 14px; }
 .count-pill {
-  background: var(--accent);
-  color: #fff;
+  background: #21443c;
+  color: var(--accent2);
   font-size: 12px; font-weight: 700;
   padding: 2px 10px;
   border-radius: 999px;
@@ -264,12 +265,12 @@ html, body, #root {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 12px 8px;
+  margin: 0 12px 10px;
   padding: 0 10px;
   min-height: 38px;
   border: 1px solid var(--panel-border);
   border-radius: 9px;
-  background: var(--panel);
+  background: var(--bg);
   color: var(--text-dim);
 }
 .search-bar:focus-within { border-color: var(--accent2); }
@@ -322,25 +323,24 @@ button:disabled { cursor: default; opacity: .65; }
   margin-bottom: 9px;
   background: rgba(255,255,255,.04);
   border: 1px solid rgba(255,255,255,.07);
-  border-left: 4px solid var(--cat-color, #5ebaff);
+  border-left: 3px solid var(--cat-color, #5ebaff);
   border-radius: var(--radius);
   cursor: pointer;
   transition: all .15s;
 }
-.storm-card:hover { background: rgba(61,139,255,.12); border-color: rgba(61,139,255,.5); }
-.storm-card.selected { background: rgba(61,139,255,.18); border-color: var(--accent); border-left-color: var(--cat-color, #5ebaff); }
+.storm-card:hover { background: #1b3337; }
+.storm-card.selected { background: #1c3839; border-color: #609788; border-left-color: var(--cat-color, #5ebaff); }
 
 .storm-cat-badge {
   width: 46px; height: 46px;
-  border-radius: 50%;
+  border-radius: 10px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: var(--cat-color, #5ebaff);
-  color: #06101f;
+  background: color-mix(in srgb, var(--cat-color) 15%, var(--bg));
+  color: var(--cat-color);
   font-weight: 800;
   font-size: 15px;
   line-height: 1;
   flex-shrink: 0;
-  box-shadow: 0 0 12px color-mix(in srgb, var(--cat-color, #5ebaff) 60%, transparent);
 }
 .storm-cat-badge small { font-size: 8.5px; font-weight: 700; margin-top: 2px; white-space: nowrap; }
 
@@ -369,22 +369,55 @@ button:disabled { cursor: default; opacity: .65; }
 .sources { margin-top: 8px; font-size: 10.5px; color: #5c6d8f; }
 
 /* ============ Globe ============ */
-#globe-wrap { flex: 1; position: relative; min-width: 0; }
+#globe-wrap {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: #080f16;
+}
 #cesiumContainer { width: 100%; height: 100%; }
 #cesiumContainer .cesium-viewer-bottom { display: none !important; }
 #cesiumContainer .cesium-widget-credits { display: none !important; }
 
 #attribution {
   position: absolute;
-  bottom: 8px; right: 12px;
+  bottom: 10px; left: 12px;
   font-size: 10px;
-  color: rgba(200, 215, 245, .55);
+  color: var(--text-dim);
   background: rgba(5, 8, 15, .5);
   padding: 3px 9px;
   border-radius: 6px;
-  pointer-events: none;
   z-index: 5;
 }
+
+#attribution a { color: inherit; }
+.map-navigation {
+  position: absolute;
+  left: 12px;
+  bottom: 38px;
+  z-index: 8;
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.map-navigation button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 500 22px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+.map-navigation button + button { border-top: 1px solid var(--panel-border); }
+.map-navigation button:hover { background: #193733; color: var(--accent2); }
 
 /* ============ Floating panels ============ */
 .panel {
@@ -483,7 +516,7 @@ button:disabled { cursor: default; opacity: .65; }
 .fab {
   display: flex; align-items: center; justify-content: center;
   width: 44px; height: 44px;
-  border-radius: 50%;
+  border-radius: 12px;
   background: var(--panel);
   border: 1px solid var(--panel-border);
   color: var(--text);
@@ -585,8 +618,8 @@ button:disabled { cursor: default; opacity: .65; }
 .toast.hidden { opacity: 0; pointer-events: none; }
 
 /* ============================================================
-   Mobile (≤ 900px): bản đồ chiếm toàn màn hình, danh sách bão
-   là dải thẻ trượt ngang phía dưới, panel dạng bottom-sheet
+   Mobile (≤ 900px): bản đồ phía trên, danh sách bão trượt ngang
+   phía dưới, panel nằm trong vùng bản đồ
    ============================================================ */
 @media (max-width: 900px) {
   :root { font-size: 14px; }
@@ -599,7 +632,7 @@ button:disabled { cursor: default; opacity: .65; }
     padding-top: max(8px, env(safe-area-inset-top));
   }
   .brand { order: 1; flex: 1; }
-  .brand-icon { width: 24px; height: 24px; }
+  .brand-icon { width: 32px; height: 32px; padding: 5px; }
   .brand-text h1 { font-size: 15px; }
   .brand-text p { display: none; }
   .brand-sub { display: none; }          /* mobile chỉ hiện "StormWatch" */
@@ -619,35 +652,27 @@ button:disabled { cursor: default; opacity: .65; }
   .countdown { display: none; }          /* mobile chỉ hiện giờ cập nhật */
   .upd-prefix { display: none; }
 
-  /* --- Bản đồ full màn hình, sidebar nổi lên trên --- */
-  #main { position: relative; display: block; }
-  #globe-wrap { position: absolute; inset: 0; }
+  /* Bản đồ và danh sách có vùng cuộn riêng. */
+  #main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 0;
+    padding: 0;
+  }
+  #globe-wrap { grid-row: 1; border-radius: 0; border-inline: 0; }
 
   #sidebar {
-    position: absolute;
-    left: 0; right: 0; bottom: 0;
-    width: auto; min-width: 0;
-    height: auto;
-    background: transparent;
-    border: none;
-    z-index: 12;
-    pointer-events: none;              /* không chặn thao tác xoay bản đồ */
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    grid-row: 2;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    padding: 8px 0 max(4px, env(safe-area-inset-bottom));
   }
-  #sidebar > * { pointer-events: auto; }
-
-  .sidebar-head {
-    display: inline-flex;
-    gap: 9px;
-    margin: 0 10px 6px;
-    padding: 6px 12px;
-    background: var(--panel);
-    border: 1px solid var(--panel-border);
-    border-radius: 999px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-  .sidebar-head h2 { font-size: 11.5px; }
+  .sidebar-head { padding: 0 12px 6px; }
+  .sidebar-head h2 { font-size: 14px; }
   .count-pill { font-size: 11px; padding: 1px 8px; }
 
   /* Dải thẻ trượt ngang */
@@ -671,7 +696,7 @@ button:disabled { cursor: default; opacity: .65; }
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-color: var(--panel-border);
-    border-left: 4px solid var(--cat-color, #5ebaff);
+    border-left: 3px solid var(--cat-color, #5ebaff);
     padding: 10px 12px;
   }
   .storm-cat-badge { width: 42px; height: 42px; font-size: 14px; }
@@ -683,16 +708,18 @@ button:disabled { cursor: default; opacity: .65; }
     border: 1px solid var(--panel-border);
     border-radius: var(--radius);
     margin: 0 10px;
-    padding: 18px 16px;
+    width: 100%;
+    padding: 7px 10px;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
 
-  .search-bar { width: min(280px, calc(100% - 20px)); margin: 0 10px 6px; }
+  .empty-state .icon, .empty-state br { display: none; }
+  .search-bar { margin: 0 12px 6px; min-height: 32px; }
   .search-bar input { font-size: 16px; }
   .storm-stats { display: none; }
   .sidebar-foot { display: none; }     /* chú giải ẩn trên mobile cho thoáng */
-  #attribution { display: none; }
+  #attribution { bottom: 6px; left: 8px; }
 
   .vn-alert {
     top: 10px;
@@ -710,37 +737,24 @@ button:disabled { cursor: default; opacity: .65; }
     height: 12px;
   }
 
-  /* Nút nổi tránh dải thẻ bão ở đáy, hỗ trợ dịch chuyển mượt mà */
-  #map-fabs {
-    right: 10px;
-    bottom: calc(180px + env(safe-area-inset-bottom));
-    gap: 8px;
-    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  }
-  #map-fabs.shift-detail {
-    transform: translateY(-57dvh);
-  }
-  #map-fabs.shift-weather {
-    transform: translateY(-240px);
-  }
-  #map-fabs.shift-layers {
-    transform: translateY(-210px);
-  }
-  .fab { width: 40px; height: 40px; }
+  #map-fabs { right: 10px; bottom: 28px; gap: 6px; }
+  #map-fabs.panel-open,
+  #globe-wrap:has(#map-fabs.panel-open) .map-navigation { visibility: hidden; }
+  .fab, .map-navigation button { width: 42px; height: 42px; }
 
-  /* --- Panel thành bottom-sheet --- */
   .panel, #layers-panel {
     top: auto;
-    left: 10px; right: 10px;
-    bottom: calc(164px + env(safe-area-inset-bottom));
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
     width: auto;
-    max-height: 68dvh;
+    max-height: calc(100% - 16px);
     animation: slideUp .22s ease;
   }
   @keyframes slideUp { from { opacity: 0; transform: translateY(16px);} to { opacity: 1; transform: none;} }
 
   /* Toast nằm trên dải thẻ bão, không đè banner cảnh báo */
-  .toast { bottom: calc(178px + env(safe-area-inset-bottom)); }
+  .toast { bottom: 32px; }
 
   /* Tối ưu hóa khối phân tích bão AI trên màn hình di động */
   .ai-analysis-box {
@@ -774,18 +788,20 @@ button:disabled { cursor: default; opacity: .65; }
   }
 }
 
-/* Màn hình rất nhỏ */
+@media (max-width: 520px) {
+  .refresh-info { display: none; }
+}
+
 @media (max-width: 380px) {
   .segmented button { padding: 7px 10px; }
-  .refresh-info { display: none; }
 }
 
 /* ============ Windy Weather Inspector Coordinates HUD ============ */
 .coords-hud {
   position: absolute;
-  bottom: 14px;
-  right: 14px;
-  background: rgba(10, 16, 32, 0.88);
+  bottom: 10px;
+  right: 12px;
+  background: var(--panel);
   border: 1px solid var(--panel-border);
   color: var(--accent2);
   padding: 6px 12px;
@@ -806,8 +822,8 @@ button:disabled { cursor: default; opacity: .65; }
 .weather-widget {
   position: absolute;
   bottom: 14px;
-  left: 340px; /* offset sidebar on desktop */
-  right: 14px;
+  left: 64px;
+  right: 64px;
   background: rgba(8, 14, 28, 0.92);
   border: 1px solid var(--panel-border);
   border-radius: var(--radius);
@@ -1018,8 +1034,9 @@ button:disabled { cursor: default; opacity: .65; }
   .weather-widget {
     left: 10px;
     right: 10px;
-    bottom: calc(164px + env(safe-area-inset-bottom));
-    max-height: 380px;
+    bottom: 8px;
+    max-height: calc(100% - 16px);
+    overflow-y: auto;
     height: auto;
   }
   .wx-main-row {
@@ -1039,7 +1056,7 @@ button:disabled { cursor: default; opacity: .65; }
     gap: 6px;
   }
   .coords-hud {
-    bottom: calc(154px + env(safe-area-inset-bottom));
+    bottom: 6px;
     right: 10px;
     font-size: 10px;
   }
@@ -1189,7 +1206,7 @@ button:disabled { cursor: default; opacity: .65; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .brand-icon, .icon-btn.spinning .icon, .panel, .modal-card, .weather-widget, .vn-alert {
+  .icon-btn.spinning .icon, .panel, .modal-card, .weather-widget, .vn-alert {
     animation: none;
   }
 }

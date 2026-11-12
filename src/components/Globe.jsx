@@ -3,6 +3,46 @@ import * as Cesium from "cesium";
 import { categorize } from "../services/storms";
 import { predictStormForecast } from "../services/alerts";
 
+const HOME = Cesium.Rectangle.fromDegrees(15, -56, 180, 80);
+
+function gibsProvider(layer, level, extension, time) {
+  const date = time ? `${time}/` : "";
+  return new Cesium.UrlTemplateImageryProvider({
+    url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${date}GoogleMapsCompatible_Level${level}/{z}/{y}/{x}.${extension}`,
+    tilingScheme: new Cesium.WebMercatorTilingScheme(),
+    maximumLevel: level,
+    credit: "NASA GIBS / EOSDIS",
+  });
+}
+
+const BASE_LAYERS = {
+  trueColor: {
+    alpha: 0.82,
+    provider: () => gibsProvider("VIIRS_NOAA20_CorrectedReflectance_TrueColor", 9, "jpeg", "default"),
+  },
+  blueMarble: {
+    provider: () => gibsProvider("BlueMarble_ShadedRelief_Bathymetry", 8, "jpeg"),
+  },
+  nightLights: {
+    provider: () => gibsProvider("VIIRS_Black_Marble", 8, "png", "2016-01-01"),
+  },
+  osm: {
+    provider: () => new Cesium.OpenStreetMapImageryProvider({ url: "https://tile.openstreetmap.org/" }),
+  },
+};
+
+const OVERLAY_DEFS = {
+  ref: { alpha: 0.85, providers: () => [gibsProvider("Reference_Features_15m", 13, "png")] },
+  labels: { alpha: 0.9, providers: () => [gibsProvider("Reference_Labels_15m", 13, "png")] },
+  clouds: { alpha: 0.55, providers: () => [
+    gibsProvider("Himawari_AHI_Band13_Clean_Infrared", 6, "png", "default"),
+    gibsProvider("GOES-East_ABI_Band13_Clean_Infrared", 6, "png", "default"),
+    gibsProvider("GOES-West_ABI_Band13_Clean_Infrared", 6, "png", "default"),
+  ] },
+  rain: { alpha: 0.85, providers: () => [gibsProvider("IMERG_Precipitation_Rate", 6, "png", "default")] },
+  sst: { alpha: 0.65, providers: () => [gibsProvider("GHRSST_L4_MUR_Sea_Surface_Temperature", 7, "png", "default")] },
+};
+
 // Keep a local cache for custom canvas icons
 const iconCache = new Map();
 
@@ -109,7 +149,9 @@ export default function Globe({
   const viewerRef = useRef(null);
   const stormSourceRef = useRef(null);
   const locSourceRef = useRef(null);
-  const activeLayersRef = useRef({});
+  const overlayLayersRef = useRef({});
+  const fallbackLayerRef = useRef(null);
+  const baseLayerRef = useRef(null);
   const rotatePausedUntilRef = useRef(0);
   const playbackRef = useRef(null);
   const tourTimerRef = useRef(null);
@@ -136,7 +178,12 @@ export default function Globe({
     Cesium.Ion.defaultAccessToken = "";
 
     const viewer = new Cesium.Viewer(containerRef.current, {
-      baseLayer: false,
+      baseLayer: new Cesium.ImageryLayer(new Cesium.UrlTemplateImageryProvider({
+        url: Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII/{z}/{x}/{reverseY}.jpg"),
+        tilingScheme: new Cesium.GeographicTilingScheme(),
+        maximumLevel: 2,
+        credit: "Natural Earth",
+      })),
       baseLayerPicker: false,
       geocoder: false,
       homeButton: false,
@@ -151,18 +198,20 @@ export default function Globe({
     });
 
     viewerRef.current = viewer;
+    fallbackLayerRef.current = viewer.imageryLayers.get(0);
     viewer.resolutionScale = 1.0;
     const scene = viewer.scene;
     scene.globe.enableLighting = false;
     scene.globe.baseColor = Cesium.Color.fromCssColorString("#0a1633");
-    scene.backgroundColor = Cesium.Color.fromCssColorString("#05080f");
+    scene.backgroundColor = Cesium.Color.fromCssColorString("#080f16");
+    scene.skyBox.show = false;
+    scene.sun.show = false;
+    scene.moon.show = false;
     scene.globe.showGroundAtmosphere = true;
-    scene.skyAtmosphere.brightnessShift = 0.15;
+    scene.skyAtmosphere.brightnessShift = -0.15;
     scene.screenSpaceCameraController.minimumZoomDistance = 120000;
 
-    viewer.camera.setView({
-      destination: Cesium.Cartesian3.fromDegrees(114, 15, 22000000),
-    });
+    viewer.camera.setView({ destination: HOME });
 
     // Custom Data Sources
     const stormSource = new Cesium.CustomDataSource("storms");
@@ -232,82 +281,59 @@ export default function Globe({
       scene.canvas.removeEventListener("wheel", pauseRotation);
       viewer.clock.onTick.removeEventListener(onTick);
       handler.destroy();
+      overlayLayersRef.current = {};
+      baseLayerRef.current = null;
+      fallbackLayerRef.current = null;
+      viewerRef.current = null;
       viewer.destroy();
     };
   }, []);
 
-  // 2. Base layer and overlays logic
+  // Keep the local global basemap below every optional imagery layer.
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    const definition = BASE_LAYERS[baseLayer] || BASE_LAYERS.blueMarble;
+    const layer = viewer.imageryLayers.addImageryProvider(definition.provider(), 1);
+    layer.alpha = definition.alpha ?? 1;
+    baseLayerRef.current = layer;
+
+    return () => {
+      if (!viewer.isDestroyed()) viewer.imageryLayers.remove(layer);
+      baseLayerRef.current = null;
+    };
+  }, [baseLayer]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!viewer) return;
+
+    for (const [key, definition] of Object.entries(OVERLAY_DEFS)) {
+      const layers = overlayLayersRef.current[key];
+      if (overlays[key] && !layers) {
+        overlayLayersRef.current[key] = definition.providers().map((provider) => {
+          const layer = viewer.imageryLayers.addImageryProvider(provider);
+          layer.alpha = definition.alpha;
+          return layer;
+        });
+      } else if (!overlays[key] && layers) {
+        layers.forEach((layer) => viewer.imageryLayers.remove(layer));
+        delete overlayLayersRef.current[key];
+      }
+    }
+
+    for (const key of ["ref", "labels"]) {
+      overlayLayersRef.current[key]?.forEach((layer) => viewer.imageryLayers.raiseToTop(layer));
+    }
+  }, [overlays]);
+
   useEffect(() => {
     if (!viewerRef.current) return;
-    const viewer = viewerRef.current;
-
-
-    const gibsProvider = (layer, matrixLevel, ext, time) => {
-      const timePart = time ? `${time}/` : "";
-      return new Cesium.UrlTemplateImageryProvider({
-        url: `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${layer}/default/${timePart}GoogleMapsCompatible_Level${matrixLevel}/{z}/{y}/{x}.${ext}`,
-        tilingScheme: new Cesium.WebMercatorTilingScheme(),
-        maximumLevel: matrixLevel,
-        credit: "NASA GIBS / EOSDIS",
-      });
-    };
-
-    const BASE_LAYERS = {
-      trueColor:   () => gibsProvider("VIIRS_SNPP_CorrectedReflectance_TrueColor", 9, "jpg"),
-      blueMarble:  () => gibsProvider("BlueMarble_ShadedRelief_Bathymetry", 8, "jpeg"),
-      nightLights: () => gibsProvider("VIIRS_Black_Marble", 8, "png", "2016-01-01"),
-      osm:         () => new Cesium.OpenStreetMapImageryProvider({ url: "https://tile.openstreetmap.org/" }),
-    };
-
-    const OVERLAY_DEFS = {
-      ref:    { alpha: 1,    providers: () => [gibsProvider("Reference_Features_15m", 13, "png")] },
-      labels: { alpha: 1,    providers: () => [gibsProvider("Reference_Labels_15m", 13, "png")] },
-      clouds: { alpha: 0.55, providers: () => [
-        gibsProvider("Himawari_AHI_Band13_Clean_Infrared", 6, "png"),
-        gibsProvider("GOES-East_ABI_Band13_Clean_Infrared", 6, "png"),
-        gibsProvider("GOES-West_ABI_Band13_Clean_Infrared", 6, "png"),
-      ] },
-      rain:   { alpha: 0.85, providers: () => [gibsProvider("IMERG_Precipitation_Rate", 6, "png")] },
-      sst:    { alpha: 0.65, providers: () => [gibsProvider("GHRSST_L4_MUR_Sea_Surface_Temperature", 7, "png")] },
-    };
-
-    // a. Update Base Layer
-    if (activeLayersRef.current.base) {
-      viewer.imageryLayers.remove(activeLayersRef.current.base, true);
-    }
-    const baseProv = BASE_LAYERS[baseLayer]();
-    const newBase = viewer.imageryLayers.addImageryProvider(baseProv);
-    viewer.imageryLayers.lowerToBottom(newBase);
-    newBase.brightness = brightness;
-    activeLayersRef.current.base = newBase;
-
-    // b. Update Overlays
-    Object.keys(OVERLAY_DEFS).forEach((key) => {
-      const active = overlays[key];
-      const current = activeLayersRef.current[key];
-
-      if (active && !current) {
-        const def = OVERLAY_DEFS[key];
-        activeLayersRef.current[key] = def.providers().map((p) => {
-          const l = viewer.imageryLayers.addImageryProvider(p);
-          l.alpha = def.alpha;
-          return l;
-        });
-        // Bring borders and labels to top
-        for (const k of ["ref", "labels"]) {
-          if (activeLayersRef.current[k]) {
-            activeLayersRef.current[k].forEach((l) => viewer.imageryLayers.raiseToTop(l));
-          }
-        }
-      } else if (!active && current) {
-        current.forEach((l) => viewer.imageryLayers.remove(l, true));
-        delete activeLayersRef.current[key];
-      }
-    });
-
-    // c. Update Lighting
-    viewer.scene.globe.enableLighting = lighting;
-  }, [baseLayer, overlays, brightness, lighting]);
+    fallbackLayerRef.current.brightness = brightness;
+    baseLayerRef.current.brightness = brightness;
+    viewerRef.current.scene.globe.enableLighting = lighting;
+  }, [baseLayer, brightness, lighting]);
 
   // 3. Draw storms, tracks and my location
   useEffect(() => {
@@ -736,11 +762,38 @@ export default function Globe({
     const dur = 1.6;
 
     if (viewMode === "2d") {
-      scene.morphTo2D(dur);
+      if (scene.mode !== Cesium.SceneMode.SCENE2D) scene.morphTo2D(dur);
     } else {
-      scene.morphTo3D(dur);
+      if (scene.mode !== Cesium.SceneMode.SCENE3D) scene.morphTo3D(dur);
     }
   }, [viewMode]);
 
-  return <div ref={containerRef} id="cesiumContainer" style={{ width: "100%", height: "100%" }} />;
+  const moveCamera = (action) => {
+    const camera = viewerRef.current?.camera;
+    if (!camera) return;
+
+    rotatePausedUntilRef.current = Date.now() + 12000;
+    onStopTour();
+    camera.cancelFlight();
+    if (action === "home") {
+      camera.flyTo({ destination: HOME, duration: 1 });
+    } else {
+      const height = camera.positionCartographic.height;
+      const amount = Math.max(0, Math.min(height * 0.25, height - 120000));
+      camera.zoomIn(action === "in" ? amount : -height * 0.33);
+    }
+  };
+
+  return (
+    <>
+      <div ref={containerRef} id="cesiumContainer" aria-label="Bản đồ theo dõi bão" />
+      <div className="map-navigation" aria-label="Điều khiển bản đồ">
+        <button type="button" onClick={() => moveCamera("in")} aria-label="Phóng to" title="Phóng to">+</button>
+        <button type="button" onClick={() => moveCamera("out")} aria-label="Thu nhỏ" title="Thu nhỏ">−</button>
+        <button type="button" onClick={() => moveCamera("home")} aria-label="Về góc nhìn ban đầu" title="Về góc nhìn ban đầu">
+          <svg className="icon" aria-hidden="true"><use href="#i-globe" /></svg>
+        </button>
+      </div>
+    </>
+  );
 }

@@ -12,6 +12,7 @@ export default function Header({
   autoRotate,
   onToggleRotate,
   onToggleLayers,
+  layersOpen,
   onToggleTour,
   tourActive,
   onToggleHelp,
@@ -27,7 +28,7 @@ export default function Header({
         <svg className="brand-icon" aria-hidden="true"><use href="#i-storm"/></svg>
         <div className="brand-text">
           <h1>StormWatch <span className="brand-sub">Global</span></h1>
-          <p>Theo dõi bão nhiệt đới toàn cầu · thời gian thực</p>
+          <p>Theo dõi bão nhiệt đới</p>
         </div>
       </div>
 
@@ -63,8 +64,10 @@ export default function Header({
         </button>
         
         <button 
-          id="btn-layers" 
-          className="icon-btn" 
+          id="btn-layers"
+          className={`icon-btn ${layersOpen ? "active" : ""}`}
+          aria-expanded={layersOpen}
+          aria-controls="layers-panel"
           onClick={onToggleLayers}
           title="Lớp bản đồ"
         >

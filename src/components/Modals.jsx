@@ -38,8 +38,8 @@ export function GuideModal({ isOpen, onClose }) {
           <div className="guide-section">
             <h4>🛰️ Lớp bản đồ</h4>
             <ul className="guide-list">
-              <li><b>Ảnh vệ tinh màu thật</b> — ảnh từ vệ tinh VIIRS/Suomi NPP, cập nhật hàng ngày</li>
-              <li><b>Blue Marble</b> — ảnh tổng hợp NASA nổi tiếng</li>
+              <li><b>Ảnh vệ tinh màu thật</b> — ảnh từ vệ tinh VIIRS/NOAA-20 gần nhất do NASA cung cấp</li>
+              <li><b>Blue Marble</b> — địa hình và độ sâu đại dương từ NASA</li>
               <li><b>Đèn đêm</b> — ảnh đèn đêm toàn cầu (Black Marble)</li>
               <li><b>Mây hồng ngoại</b> — mây từ 3 vệ tinh: Himawari, GOES-East, GOES-West</li>
               <li><b>Mưa</b> — dữ liệu mưa GPM IMERG</li>
